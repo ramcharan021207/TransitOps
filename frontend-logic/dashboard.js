@@ -1,67 +1,61 @@
 /**
  * dashboard.js — TransitOps ERP
- * Handles sidebar navigation, dropdowns, and dashboard card data.
- * No backend. No fetch API. No localStorage. No authentication logic.
- * Pure frontend behaviour only.
+ * Handles sidebar navigation, dropdowns, live clock, KPI cards,
+ * and all dashboard data panels loaded from the API.
+ *
+ * UI behaviour (preserved from original):
+ *   - Sidebar open / close / toggle
+ *   - Active navigation menu item
+ *   - Notification dropdown + badge + mark-read
+ *   - Profile dropdown
+ *   - Live clock
+ *   - Logout
+ *
+ * API data (new):
+ *   - GET /api/reports/dashboard      → KPI cards
+ *   - GET /api/reports/recent-trips   → Recent trips panel
+ *   - GET /api/reports/recent-maintenance → Recent maintenance panel
+ *   - GET /api/reports/recent-fuel    → Recent fuel panel
+ *   - Auto-refresh every 30 seconds
+ *
+ * Rules:
+ *   - Fetch API only (async / await / try-catch)
+ *   - No dummy data for API sections
+ *   - If backend unavailable, display error banner
  */
 
+"use strict";
+
 /* ═══════════════════════════════════════════════════════════════════
-   DUMMY DATA
-   All data is hardcoded. No API calls, no backend, no storage.
+   API BASE URL
+   Single constant for all report endpoint calls.
+═══════════════════════════════════════════════════════════════════ */
+const DASH_API_BASE = "/api";
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUTO-REFRESH INTERVAL
+   Dashboard data is re-fetched every 30 seconds.
+   The interval id is stored so it can be cleared if needed.
+═══════════════════════════════════════════════════════════════════ */
+const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+let refreshIntervalId = null;
+
+/* ═══════════════════════════════════════════════════════════════════
+   STATIC UI DATA (preserved)
+   NOTIFICATIONS, CURRENT_USER, NAV_ITEMS are frontend-only and
+   remain hardcoded until the auth/notifications API is connected.
 ═══════════════════════════════════════════════════════════════════ */
 
-/* ─── Dashboard KPI Cards Data ────────────────────────────────── */
-/* Values are placeholder "--" until the real API is connected (Hour 3). */
+/* ─── KPI Card Definitions ──────────────────────────────────────── */
+/* Structure only — values are loaded from GET /api/reports/dashboard */
 const DASHBOARD_CARDS = [
-  {
-    id: "card-active-vehicles",
-    title: "Active Vehicles",
-    value: "--",
-    icon: "🚌",
-    color: "green",
-  },
-  {
-    id: "card-available-vehicles",
-    title: "Available Vehicles",
-    value: "--",
-    icon: "✅",
-    color: "blue",
-  },
-  {
-    id: "card-vehicles-in-maintenance",
-    title: "Vehicles In Maintenance",
-    value: "--",
-    icon: "🔧",
-    color: "orange",
-  },
-  {
-    id: "card-active-trips",
-    title: "Active Trips",
-    value: "--",
-    icon: "🛣️",
-    color: "purple",
-  },
-  {
-    id: "card-pending-trips",
-    title: "Pending Trips",
-    value: "--",
-    icon: "⏳",
-    color: "yellow",
-  },
-  {
-    id: "card-drivers-on-duty",
-    title: "Drivers On Duty",
-    value: "--",
-    icon: "👤",
-    color: "teal",
-  },
-  {
-    id: "card-fleet-utilization",
-    title: "Fleet Utilization",
-    value: "--",
-    icon: "📊",
-    color: "red",
-  },
+  { id: "card-active-vehicles",        title: "Active Vehicles",        apiKey: "active_vehicles",        icon: "🚌", color: "green"  },
+  { id: "card-available-vehicles",     title: "Available Vehicles",     apiKey: "available_vehicles",     icon: "✅", color: "blue"   },
+  { id: "card-vehicles-in-maintenance",title: "Vehicles In Maintenance",apiKey: "vehicles_in_maintenance",icon: "🔧", color: "orange" },
+  { id: "card-active-trips",           title: "Active Trips",           apiKey: "active_trips",           icon: "🛣️", color: "purple" },
+  { id: "card-pending-trips",          title: "Pending Trips",          apiKey: "pending_trips",          icon: "⏳", color: "yellow" },
+  { id: "card-drivers-on-duty",        title: "Drivers On Duty",        apiKey: "drivers_on_duty",        icon: "👤", color: "teal"   },
+  { id: "card-fleet-utilization",      title: "Fleet Utilization",      apiKey: "fleet_utilization",      icon: "📊", color: "red"    },
 ];
 
 /* ─── Notifications Data ────────────────────────────────────────── */
@@ -105,49 +99,461 @@ const CURRENT_USER = {
   name: "Alex Johnson",
   role: "Fleet Manager",
   email: "manager@transitops.com",
-  avatar: "AJ",          // Initials for avatar placeholder
+  avatar: "AJ",
   status: "Online",
 };
 
 /* ─── Sidebar Navigation Items ─────────────────────────────────── */
 const NAV_ITEMS = [
-  { id: "nav-dashboard",   label: "Dashboard",    icon: "📊", href: "#dashboard"  },
-  { id: "nav-routes",      label: "Routes",       icon: "🛣️", href: "#routes"     },
-  { id: "nav-vehicles",    label: "Vehicles",     icon: "🚌", href: "#vehicles"   },
-  { id: "nav-drivers",     label: "Drivers",      icon: "👤", href: "#drivers"    },
-  { id: "nav-dispatch",    label: "Dispatch",     icon: "📋", href: "#dispatch"   },
-  { id: "nav-fuel",        label: "Fuel Logs",    icon: "⛽", href: "#fuel"       },
-  { id: "nav-reports",     label: "Reports",      icon: "📈", href: "#reports"    },
-  { id: "nav-settings",    label: "Settings",     icon: "⚙️", href: "#settings"   },
+  { id: "nav-dashboard", label: "Dashboard", icon: "📊", href: "#dashboard" },
+  { id: "nav-routes",    label: "Routes",    icon: "🛣️", href: "#routes"    },
+  { id: "nav-vehicles",  label: "Vehicles",  icon: "🚌", href: "#vehicles"  },
+  { id: "nav-drivers",   label: "Drivers",   icon: "👤", href: "#drivers"   },
+  { id: "nav-dispatch",  label: "Dispatch",  icon: "📋", href: "#dispatch"  },
+  { id: "nav-fuel",      label: "Fuel Logs", icon: "⛽", href: "#fuel"      },
+  { id: "nav-reports",   label: "Reports",   icon: "📈", href: "#reports"   },
+  { id: "nav-settings",  label: "Settings",  icon: "⚙️", href: "#settings"  },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════
-   DOM REFERENCES
-   All element references for the dashboard layout.
+   DOM REFERENCES — LAYOUT
 ═══════════════════════════════════════════════════════════════════ */
-const sidebar            = document.getElementById("sidebar");
-const sidebarToggleBtn   = document.getElementById("sidebar-toggle");
-const sidebarCloseBtn    = document.getElementById("sidebar-close");
-const mainContent        = document.getElementById("main-content");
-const overlay            = document.getElementById("sidebar-overlay");
+const sidebar          = document.getElementById("sidebar");
+const sidebarToggleBtn = document.getElementById("sidebar-toggle");
+const sidebarCloseBtn  = document.getElementById("sidebar-close");
+const mainContent      = document.getElementById("main-content");
+const overlay          = document.getElementById("sidebar-overlay");
 
-const notifToggleBtn     = document.getElementById("notif-toggle");
-const notifDropdown      = document.getElementById("notif-dropdown");
-const notifBadge         = document.getElementById("notif-badge");
-const notifList          = document.getElementById("notif-list");
-const markAllReadBtn     = document.getElementById("mark-all-read");
+const notifToggleBtn   = document.getElementById("notif-toggle");
+const notifDropdown    = document.getElementById("notif-dropdown");
+const notifBadge       = document.getElementById("notif-badge");
+const notifList        = document.getElementById("notif-list");
+const markAllReadBtn   = document.getElementById("mark-all-read");
 
-const profileToggleBtn   = document.getElementById("profile-toggle");
-const profileDropdown    = document.getElementById("profile-dropdown");
-const profileName        = document.getElementById("profile-name");
-const profileRole        = document.getElementById("profile-role");
-const profileAvatar      = document.getElementById("profile-avatar");
+const profileToggleBtn = document.getElementById("profile-toggle");
+const profileDropdown  = document.getElementById("profile-dropdown");
+const profileName      = document.getElementById("profile-name");
+const profileRole      = document.getElementById("profile-role");
+const profileAvatar    = document.getElementById("profile-avatar");
 
-const navMenu            = document.getElementById("nav-menu");
-const cardsContainer     = document.getElementById("dashboard-cards");
-const logoutBtn          = document.getElementById("logout-btn");
-const currentDateTime    = document.getElementById("current-datetime");
-const pageTitle          = document.getElementById("page-title");
+const navMenu          = document.getElementById("nav-menu");
+const cardsContainer   = document.getElementById("dashboard-cards");
+const logoutBtn        = document.getElementById("logout-btn");
+const currentDateTime  = document.getElementById("current-datetime");
+const pageTitle        = document.getElementById("page-title");
+
+/* ═══════════════════════════════════════════════════════════════════
+   DOM REFERENCES — API DATA PANELS
+   These elements receive live data loaded from the report APIs.
+═══════════════════════════════════════════════════════════════════ */
+const dashErrorBanner   = document.getElementById("dash-error-banner");
+const dashErrorMsg      = document.getElementById("dash-error-message");
+
+// ── Recent Trips panel
+const recentTripsBody   = document.getElementById("recent-trips-body");
+const recentTripsEmpty  = document.getElementById("recent-trips-empty");
+
+// ── Recent Maintenance panel
+const recentMaintBody   = document.getElementById("recent-maint-body");
+const recentMaintEmpty  = document.getElementById("recent-maint-empty");
+
+// ── Recent Fuel panel
+const recentFuelBody    = document.getElementById("recent-fuel-body");
+const recentFuelEmpty   = document.getElementById("recent-fuel-empty");
+
+// ── Last-refreshed timestamp display
+const lastRefreshedEl   = document.getElementById("last-refreshed");
+
+/* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   API — DASHBOARD DATA
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHOW DASHBOARD ERROR BANNER
+   Displays the page-level API error banner with a message.
+   Hides automatically after 6 seconds.
+
+   @param {string} msg — error text to display
+═══════════════════════════════════════════════════════════════════ */
+function showDashError(msg) {
+  if (!dashErrorBanner || !dashErrorMsg) return;
+
+  dashErrorMsg.textContent = msg;
+  dashErrorBanner.classList.add("visible");
+  dashErrorBanner.classList.remove("hidden");
+
+  // Auto-dismiss after 6 seconds
+  setTimeout(function () {
+    dashErrorBanner.classList.remove("visible");
+  }, 6000);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHOW CARD LOADING STATE
+   Fills every KPI card value with a loading indicator
+   while the dashboard API request is in flight.
+═══════════════════════════════════════════════════════════════════ */
+function showCardsLoading() {
+  // Find every rendered card value element and replace with spinner text
+  DASHBOARD_CARDS.forEach(function (card) {
+    const cardEl = document.getElementById(card.id);
+    if (!cardEl) return;
+    const valueEl = cardEl.querySelector(".card-value");
+    if (valueEl) {
+      valueEl.textContent = "…"; // loading indicator
+      valueEl.classList.add("loading");
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOAD DASHBOARD KPI CARDS
+   Fetches summary metrics from GET /api/reports/dashboard and
+   updates each KPI card with the real value from the API response.
+
+   Expected response shape:
+   {
+     active_vehicles: 12,
+     available_vehicles: 8,
+     vehicles_in_maintenance: 3,
+     active_trips: 5,
+     pending_trips: 7,
+     drivers_on_duty: 18,
+     fleet_utilization: "72%"
+   }
+
+   If the backend is unavailable, cards show "--" and the error
+   banner is displayed.
+═══════════════════════════════════════════════════════════════════ */
+async function loadDashboardCards() {
+  // Show loading indicators in all cards before the request fires
+  showCardsLoading();
+
+  try {
+    const response = await fetch(DASH_API_BASE + "/reports/dashboard");
+
+    if (!response.ok) {
+      throw new Error("Server returned status " + response.status);
+    }
+
+    // Parse the metrics object
+    const data = await response.json();
+
+    // Update each card's value element with the API-provided value
+    DASHBOARD_CARDS.forEach(function (card) {
+      const cardEl = document.getElementById(card.id);
+      if (!cardEl) return;
+
+      const valueEl = cardEl.querySelector(".card-value");
+      if (!valueEl) return;
+
+      // Read the matching key from the API response; fall back to "--"
+      const rawValue = data[card.apiKey];
+      valueEl.textContent = (rawValue !== null && rawValue !== undefined)
+        ? String(rawValue)
+        : "--";
+
+      // Remove loading class now that real data is shown
+      valueEl.classList.remove("loading");
+    });
+
+  } catch (error) {
+    // Backend unavailable — set every card to "--"
+    DASHBOARD_CARDS.forEach(function (card) {
+      const cardEl = document.getElementById(card.id);
+      if (!cardEl) return;
+      const valueEl = cardEl.querySelector(".card-value");
+      if (valueEl) {
+        valueEl.textContent = "--";
+        valueEl.classList.remove("loading");
+      }
+    });
+
+    showDashError("Unable to connect to backend server.");
+    console.error("[dashboard.js] loadDashboardCards error:", error);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SET TABLE LOADING ROW
+   Inserts a single loading row spanning all columns into a
+   table body element while an API request is in flight.
+
+   @param {HTMLElement} tbody   — the <tbody> element to update
+   @param {number}      colspan — number of columns to span
+═══════════════════════════════════════════════════════════════════ */
+function setTableLoading(tbody, colspan) {
+  if (!tbody) return;
+  tbody.innerHTML =
+    '<tr><td colspan="' + colspan + '" class="table-loading">Loading...</td></tr>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOAD RECENT TRIPS
+   Fetches the latest trip records from GET /api/reports/recent-trips
+   and renders them into the recent-trips panel.
+
+   Expected response: Array of trip objects, each containing:
+     trip_id, vehicle, driver, source, destination, status, start_date
+═══════════════════════════════════════════════════════════════════ */
+async function loadRecentTrips() {
+  // Show loading row while the request is in flight
+  setTableLoading(recentTripsBody, 6);
+
+  try {
+    const response = await fetch(DASH_API_BASE + "/reports/recent-trips");
+
+    if (!response.ok) {
+      throw new Error("Server returned status " + response.status);
+    }
+
+    const trips = await response.json();
+
+    // Clear and render
+    if (recentTripsBody) recentTripsBody.innerHTML = "";
+
+    if (!trips || trips.length === 0) {
+      // Show empty state
+      if (recentTripsEmpty) {
+        recentTripsEmpty.classList.remove("hidden");
+        recentTripsEmpty.classList.add("visible");
+      }
+      return;
+    }
+
+    // Hide empty state when data is available
+    if (recentTripsEmpty) {
+      recentTripsEmpty.classList.add("hidden");
+      recentTripsEmpty.classList.remove("visible");
+    }
+
+    // Build one row per trip
+    trips.forEach(function (trip) {
+      if (!recentTripsBody) return;
+
+      const statusClass = getTripStatusClass(trip.status);
+      const tr = document.createElement("tr");
+
+      tr.innerHTML =
+        "<td>" + escapeHtml(String(trip.trip_id))   + "</td>" +
+        "<td>" + escapeHtml(trip.vehicle)            + "</td>" +
+        "<td>" + escapeHtml(trip.source) + " → " + escapeHtml(trip.destination) + "</td>" +
+        "<td>" + escapeHtml(trip.driver)             + "</td>" +
+        "<td>" + formatDate(trip.start_date)         + "</td>" +
+        "<td>" +
+          '<span class="status-badge ' + statusClass + '">' +
+            escapeHtml(trip.status) +
+          "</span>" +
+        "</td>";
+
+      recentTripsBody.appendChild(tr);
+    });
+
+  } catch (error) {
+    if (recentTripsBody) {
+      recentTripsBody.innerHTML =
+        '<tr><td colspan="6" class="table-error">Unable to load recent trips.</td></tr>';
+    }
+    console.error("[dashboard.js] loadRecentTrips error:", error);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOAD RECENT MAINTENANCE
+   Fetches the latest maintenance records from
+   GET /api/reports/recent-maintenance and renders them.
+
+   Expected response: Array of maintenance objects, each containing:
+     maintenance_id, vehicle, maintenance_type,
+     scheduled_date, status, technician
+═══════════════════════════════════════════════════════════════════ */
+async function loadRecentMaintenance() {
+  // Show loading row while the request is in flight
+  setTableLoading(recentMaintBody, 5);
+
+  try {
+    const response = await fetch(DASH_API_BASE + "/reports/recent-maintenance");
+
+    if (!response.ok) {
+      throw new Error("Server returned status " + response.status);
+    }
+
+    const records = await response.json();
+
+    // Clear and render
+    if (recentMaintBody) recentMaintBody.innerHTML = "";
+
+    if (!records || records.length === 0) {
+      // Show empty state
+      if (recentMaintEmpty) {
+        recentMaintEmpty.classList.remove("hidden");
+        recentMaintEmpty.classList.add("visible");
+      }
+      return;
+    }
+
+    // Hide empty state when data is available
+    if (recentMaintEmpty) {
+      recentMaintEmpty.classList.add("hidden");
+      recentMaintEmpty.classList.remove("visible");
+    }
+
+    // Build one row per maintenance record
+    records.forEach(function (record) {
+      if (!recentMaintBody) return;
+
+      const statusClass = getMaintStatusClass(record.status);
+      const tr = document.createElement("tr");
+
+      tr.innerHTML =
+        "<td>" + escapeHtml(record.vehicle)                + "</td>" +
+        "<td>" + escapeHtml(record.maintenance_type)       + "</td>" +
+        "<td>" + formatDate(record.scheduled_date)         + "</td>" +
+        "<td>" + escapeHtml(record.technician || "—")      + "</td>" +
+        "<td>" +
+          '<span class="status-badge ' + statusClass + '">' +
+            escapeHtml(record.status) +
+          "</span>" +
+        "</td>";
+
+      recentMaintBody.appendChild(tr);
+    });
+
+  } catch (error) {
+    if (recentMaintBody) {
+      recentMaintBody.innerHTML =
+        '<tr><td colspan="5" class="table-error">Unable to load maintenance records.</td></tr>';
+    }
+    console.error("[dashboard.js] loadRecentMaintenance error:", error);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOAD RECENT FUEL
+   Fetches the latest fuel log entries from
+   GET /api/reports/recent-fuel and renders them.
+
+   Expected response: Array of fuel objects, each containing:
+     fuel_id, vehicle, fuel_type, litres, cost, date
+═══════════════════════════════════════════════════════════════════ */
+async function loadRecentFuel() {
+  // Show loading row while the request is in flight
+  setTableLoading(recentFuelBody, 5);
+
+  try {
+    const response = await fetch(DASH_API_BASE + "/reports/recent-fuel");
+
+    if (!response.ok) {
+      throw new Error("Server returned status " + response.status);
+    }
+
+    const logs = await response.json();
+
+    // Clear and render
+    if (recentFuelBody) recentFuelBody.innerHTML = "";
+
+    if (!logs || logs.length === 0) {
+      // Show empty state
+      if (recentFuelEmpty) {
+        recentFuelEmpty.classList.remove("hidden");
+        recentFuelEmpty.classList.add("visible");
+      }
+      return;
+    }
+
+    // Hide empty state when data is available
+    if (recentFuelEmpty) {
+      recentFuelEmpty.classList.add("hidden");
+      recentFuelEmpty.classList.remove("visible");
+    }
+
+    // Build one row per fuel log
+    logs.forEach(function (log) {
+      if (!recentFuelBody) return;
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML =
+        "<td>" + escapeHtml(log.vehicle)             + "</td>" +
+        "<td>" + escapeHtml(log.fuel_type)           + "</td>" +
+        "<td>" + escapeHtml(String(log.litres)) + " L" + "</td>" +
+        "<td>" + formatCurrency(log.cost)            + "</td>" +
+        "<td>" + formatDate(log.date)                + "</td>";
+
+      recentFuelBody.appendChild(tr);
+    });
+
+  } catch (error) {
+    if (recentFuelBody) {
+      recentFuelBody.innerHTML =
+        '<tr><td colspan="5" class="table-error">Unable to load fuel logs.</td></tr>';
+    }
+    console.error("[dashboard.js] loadRecentFuel error:", error);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   REFRESH ALL DASHBOARD DATA
+   Fetches all four API endpoints concurrently.
+   Called on initial load and every 30 seconds by the auto-refresh
+   interval.  Also updates the "Last refreshed" timestamp.
+═══════════════════════════════════════════════════════════════════ */
+async function refreshDashboard() {
+  // Fetch all four data sources in parallel — none blocks another
+  await Promise.all([
+    loadDashboardCards(),
+    loadRecentTrips(),
+    loadRecentMaintenance(),
+    loadRecentFuel(),
+  ]);
+
+  // Update the "last refreshed" display with the current time
+  updateLastRefreshed();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UPDATE LAST REFRESHED
+   Writes the current time into the "last-refreshed" element so
+   the user knows when the data was last fetched.
+═══════════════════════════════════════════════════════════════════ */
+function updateLastRefreshed() {
+  if (!lastRefreshedEl) return;
+
+  const now = new Date();
+  lastRefreshedEl.textContent =
+    "Last refreshed: " +
+    now.toLocaleTimeString("en-IN", {
+      hour   : "2-digit",
+      minute : "2-digit",
+      second : "2-digit",
+      hour12 : true,
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   START AUTO-REFRESH
+   Sets up a repeating interval that calls refreshDashboard()
+   every REFRESH_INTERVAL_MS milliseconds (30 seconds).
+   Stores the interval id so it can be cleared if needed.
+═══════════════════════════════════════════════════════════════════ */
+function startAutoRefresh() {
+  // Clear any existing interval before starting a new one
+  if (refreshIntervalId !== null) {
+    clearInterval(refreshIntervalId);
+  }
+
+  refreshIntervalId = setInterval(function () {
+    refreshDashboard();
+  }, REFRESH_INTERVAL_MS);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   UI — SIDEBAR (preserved from original)
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
    SIDEBAR — OPEN
@@ -272,9 +678,9 @@ function buildSidebarNav() {
 
     // Create the anchor link element
     const a = document.createElement("a");
-    a.id        = item.id;           // assign id for active state targeting
-    a.href      = item.href;         // anchor link (no-reload navigation)
-    a.className = "nav-item";        // base CSS class for styling
+    a.id        = item.id;
+    a.href      = item.href;
+    a.className = "nav-item";
     a.setAttribute("role", "menuitem");
 
     // Build inner HTML: icon span + label span
@@ -305,9 +711,15 @@ function buildSidebarNav() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   UI — NOTIFICATIONS (preserved from original)
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
    NOTIFICATION DROPDOWN — TOGGLE
    Opens or closes the notification dropdown panel.
-   Closes the profile dropdown if it's also open.
+   Closes the profile dropdown if it is also open.
 ═══════════════════════════════════════════════════════════════════ */
 function toggleNotificationDropdown() {
   if (!notifDropdown) return;
@@ -464,9 +876,15 @@ function markAllNotificationsRead() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   UI — PROFILE (preserved from original)
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
    PROFILE DROPDOWN — TOGGLE
    Opens or closes the profile dropdown panel.
-   Closes the notification dropdown if it's also open.
+   Closes the notification dropdown if it is also open.
 ═══════════════════════════════════════════════════════════════════ */
 function toggleProfileDropdown() {
   if (!profileDropdown) return;
@@ -505,14 +923,14 @@ function closeProfileDropdown() {
 
 /* ═══════════════════════════════════════════════════════════════════
    POPULATE PROFILE DATA
-   Inserts current user info from CURRENT_USER into
-   the profile dropdown and header display elements.
+   Inserts current user info from CURRENT_USER into the profile
+   dropdown and header display elements.
 ═══════════════════════════════════════════════════════════════════ */
 function populateProfileData() {
   // Set avatar initials in all avatar elements
   const avatarEls = document.querySelectorAll(".profile-avatar, #profile-avatar");
   avatarEls.forEach(function (el) {
-    el.textContent = CURRENT_USER.avatar; // show initials
+    el.textContent = CURRENT_USER.avatar;
   });
 
   // Set user name elements
@@ -525,7 +943,7 @@ function populateProfileData() {
     profileRole.textContent = CURRENT_USER.role;
   }
 
-  // Also fill any header username display
+  // Fill any header username display
   const headerNameEl = document.getElementById("header-username");
   if (headerNameEl) {
     headerNameEl.textContent = CURRENT_USER.name;
@@ -539,10 +957,18 @@ function populateProfileData() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   UI — KPI CARD SCAFFOLDING
+   Builds the card DOM structure first (with "--" values).
+   Real values are filled in by loadDashboardCards().
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
    BUILD DASHBOARD CARDS
-   Renders KPI summary cards from DASHBOARD_CARDS data into the
-   cards container element.
-   Values are "--" placeholders until the real API is connected.
+   Renders KPI card shells from DASHBOARD_CARDS definitions.
+   Each card starts with "--" as the value; loadDashboardCards()
+   replaces those with real API data immediately after.
 ═══════════════════════════════════════════════════════════════════ */
 function buildDashboardCards() {
   if (!cardsContainer) return;
@@ -550,22 +976,21 @@ function buildDashboardCards() {
   // Clear any static placeholder cards
   cardsContainer.innerHTML = "";
 
-  // Loop through each card data object and create the card element
+  // Loop through each card definition and create the card element
   DASHBOARD_CARDS.forEach(function (card) {
     // Create card wrapper div
     const cardEl = document.createElement("div");
-    cardEl.className = "dashboard-card card-" + card.color; // color class for CSS
+    cardEl.className = "dashboard-card card-" + card.color;
     cardEl.id = card.id;
 
-    // Build card inner HTML — icon, title, and placeholder value only
-    // TODO: Populate card.value from API response during Hour 3
+    // Build card inner HTML — value starts as "--"
     cardEl.innerHTML =
       '<div class="card-header">' +
         '<span class="card-icon" aria-hidden="true">' + card.icon + '</span>' +
         '<h3 class="card-title">' + card.title + '</h3>' +
       '</div>' +
       '<div class="card-body">' +
-        '<p class="card-value">' + card.value + '</p>' +
+        '<p class="card-value">--</p>' +
       '</div>';
 
     // Add hover lift effect via class — animation defined in CSS
@@ -579,6 +1004,12 @@ function buildDashboardCards() {
     cardsContainer.appendChild(cardEl);
   });
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   UI — UTILITY (preserved from original)
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
    CLOSE ALL DROPDOWNS
@@ -636,13 +1067,13 @@ function updateClock() {
 
   // Format: "Saturday, 12 Jul 2026  09:39 AM"
   const options = {
-    weekday: "long",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
+    weekday : "long",
+    year    : "numeric",
+    month   : "short",
+    day     : "numeric",
+    hour    : "2-digit",
+    minute  : "2-digit",
+    hour12  : true,
   };
 
   // Use browser locale formatting
@@ -651,7 +1082,7 @@ function updateClock() {
 
 /* ═══════════════════════════════════════════════════════════════════
    LOGOUT
-   Clears any form state and redirects to login page.
+   Redirects to the login page.
    No authentication logic — purely navigational.
 ═══════════════════════════════════════════════════════════════════ */
 function handleLogout() {
@@ -663,8 +1094,112 @@ function handleLogout() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   HELPER FUNCTIONS
+   Shared formatters and escape utilities for table rendering.
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPER — formatDate
+   Converts an ISO-8601 date string into a human-readable display.
+
+   @param  {string} dateStr — e.g. "2026-07-12T00:00:00Z"
+   @returns {string}         — e.g. "12 Jul 2026" or "—" if invalid
+═══════════════════════════════════════════════════════════════════ */
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return "—";
+
+  return parsed.toLocaleDateString("en-IN", {
+    day   : "2-digit",
+    month : "short",
+    year  : "numeric",
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPER — formatCurrency
+   Formats a numeric value as INR currency.
+
+   @param  {number} value — monetary value
+   @returns {string} formatted string or "—" if invalid
+═══════════════════════════════════════════════════════════════════ */
+function formatCurrency(value) {
+  if (value === null || value === undefined || isNaN(Number(value))) return "—";
+
+  return Number(value).toLocaleString("en-IN", {
+    style                : "currency",
+    currency             : "INR",
+    maximumFractionDigits: 0,
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPER — escapeHtml
+   Escapes special HTML characters to prevent XSS when inserting
+   API data into innerHTML.
+
+   @param  {string|number} str — raw value from the API
+   @returns {string} HTML-safe string
+═══════════════════════════════════════════════════════════════════ */
+function escapeHtml(str) {
+  if (!str && str !== 0) return "";
+  return String(str)
+    .replace(/&/g,  "&amp;")
+    .replace(/</g,  "&lt;")
+    .replace(/>/g,  "&gt;")
+    .replace(/"/g,  "&quot;")
+    .replace(/'/g,  "&#39;");
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPER — getTripStatusClass
+   Maps a trip status string to a CSS badge class.
+
+   @param  {string} status — e.g. "Scheduled", "In Progress"
+   @returns {string} CSS class name
+═══════════════════════════════════════════════════════════════════ */
+function getTripStatusClass(status) {
+  switch (status) {
+    case "Scheduled":   return "badge-available";
+    case "In Progress": return "badge-active";
+    case "Completed":   return "badge-completed";
+    case "Cancelled":   return "badge-retired";
+    case "Delayed":     return "badge-maintenance";
+    default:            return "badge-default";
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPER — getMaintStatusClass
+   Maps a maintenance status string to a CSS badge class.
+
+   @param  {string} status — e.g. "Scheduled", "Completed"
+   @returns {string} CSS class name
+═══════════════════════════════════════════════════════════════════ */
+function getMaintStatusClass(status) {
+  switch (status) {
+    case "Scheduled":   return "badge-available";
+    case "In Progress": return "badge-active";
+    case "Completed":   return "badge-completed";
+    case "Cancelled":   return "badge-retired";
+    case "On Hold":     return "badge-maintenance";
+    default:            return "badge-default";
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ████████████████████████████████████████████████████████████████
+   EVENT LISTENERS
+   ████████████████████████████████████████████████████████████████
+═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
    ATTACH EVENT LISTENERS
    Wires all interactive elements to their handler functions.
+   Preserved from the original file with no changes.
 ═══════════════════════════════════════════════════════════════════ */
 function attachEventListeners() {
   // ── Sidebar toggle button (hamburger icon in header)
@@ -722,9 +1257,8 @@ function attachEventListeners() {
     }
   });
 
-  // ── Window resize: auto-close sidebar on desktop resize
+  // ── Window resize: auto-close sidebar overlay on desktop
   window.addEventListener("resize", function () {
-    // On large screens, sidebar is always visible — ensure clean state
     if (window.innerWidth >= 1024) {
       if (overlay) overlay.classList.remove("visible");
     }
@@ -732,34 +1266,46 @@ function attachEventListeners() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   INIT — DASHBOARD INITIALISE
-   Orchestrates all build and setup functions on DOM ready.
+   ████████████████████████████████████████████████████████████████
+   INIT
+   ████████████████████████████████████████████████████████████████
 ═══════════════════════════════════════════════════════════════════ */
-function initialiseDashboard() {
-  // Build sidebar navigation items from data
-  buildSidebarNav();
 
-  // Render KPI cards from dummy data
-  buildDashboardCards();
+/* ═══════════════════════════════════════════════════════════════════
+   INIT — initialiseDashboard
+   Orchestrates all build, setup, and API fetch functions.
+   Order:
+   1. Build static UI (sidebar, cards scaffold, notifications, profile)
+   2. Attach event listeners
+   3. Start live clock
+   4. Fetch all API data (initial load)
+   5. Start 30-second auto-refresh
+═══════════════════════════════════════════════════════════════════ */
+async function initialiseDashboard() {
+  // ── Step 1: Build static UI elements ──────────────────────────
+  buildSidebarNav();         // render sidebar navigation links
+  buildDashboardCards();     // render KPI card shells with "--" values
+  buildNotificationsList();  // render notification dropdown items
+  populateProfileData();     // fill profile name, role, avatar
 
-  // Render notifications list and set badge count
-  buildNotificationsList();
-
-  // Populate user profile data into header and dropdown
-  populateProfileData();
-
-  // Attach all event listeners
+  // ── Step 2: Attach all interactive event listeners ─────────────
   attachEventListeners();
 
-  // Start the live clock and update every second
+  // ── Step 3: Start the live clock (updates every second) ────────
   updateClock();
   setInterval(updateClock, 1000);
 
-  // Open sidebar by default on large screens (desktop layout)
+  // ── Step 4: Open sidebar by default on large screens ──────────
   if (window.innerWidth >= 1024) {
     openSidebar();
   }
+
+  // ── Step 5: Fetch all API data on initial load ─────────────────
+  await refreshDashboard();
+
+  // ── Step 6: Start the 30-second auto-refresh interval ─────────
+  startAutoRefresh();
 }
 
-// Run dashboard initialisation when the DOM is fully loaded
+// Run when the DOM is fully parsed and ready
 document.addEventListener("DOMContentLoaded", initialiseDashboard);
