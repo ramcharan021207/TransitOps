@@ -119,7 +119,7 @@
                         <h1 class="page-title">Maintenance</h1>
                         <div class="page-subtitle">Manage vehicle maintenance records.</div>
                     </div>
-                    <button class="btn btn-primary" onclick="document.getElementById('addMaintenanceModal').classList.add('active')">
+                    <button class="btn btn-primary" data-open-modal="addMaintenanceModal">
                         Log Maintenance
                     </button>
                 </div>
@@ -145,7 +145,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="maintenance-table-body">
                             <tr>
                                 <td>TRX-8291</td>
                                 <td>Engine Repair</td>
@@ -183,7 +183,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Log Maintenance</h3>
-                <button class="modal-close" onclick="document.getElementById('addMaintenanceModal').classList.remove('active')">&times;</button>
+                <button class="modal-close" data-close-modal="addMaintenanceModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="addMaintenanceForm">
@@ -218,11 +218,13 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addMaintenanceModal').classList.remove('active')">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('addMaintenanceModal').classList.remove('active')">Save</button>
+                <button type="button" class="btn btn-secondary" data-close-modal="addMaintenanceModal">Cancel</button>
+                <button type="button" class="btn btn-primary">Save</button>
             </div>
         </div>
     </div>
+    <script src="../frontend_logic/common.js"></script>
+    <script src="../frontend_logic/ui.js"></script>
 </body>
 </html>
 

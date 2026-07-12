@@ -119,7 +119,7 @@
                         <h1 class="page-title">Drivers & Safety Profiles</h1>
                         <div class="page-subtitle">Manage drivers and monitor safety compliance.</div>
                     </div>
-                    <button class="btn btn-primary" onclick="document.getElementById('addDriverModal').classList.add('active')">
+                    <button class="btn btn-primary" data-open-modal="addDriverModal">
                         + Add Driver
                     </button>
                 </div>
@@ -147,7 +147,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="driver-table-body">
                             <tr>
                                 <td>John Doe</td>
                                 <td>DL-559021</td>
@@ -217,7 +217,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Add Driver</h3>
-                <button class="modal-close" onclick="document.getElementById('addDriverModal').classList.remove('active')">&times;</button>
+                <button class="modal-close" data-close-modal="addDriverModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="addDriverForm">
@@ -262,11 +262,13 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addDriverModal').classList.remove('active')">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('addDriverModal').classList.remove('active')">Save</button>
+                <button type="button" class="btn btn-secondary" data-close-modal="addDriverModal">Cancel</button>
+                <button type="button" class="btn btn-primary">Save</button>
             </div>
         </div>
     </div>
+    <script src="../frontend_logic/common.js"></script>
+    <script src="../frontend_logic/ui.js"></script>
 </body>
 </html>
 

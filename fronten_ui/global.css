@@ -227,6 +227,20 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 4px;
   border: 1px solid #f5c6cb;
 }
+.error-message.visible,
+.success-message.visible {
+  display: block;
+}
+.success-message {
+  color: var(--success);
+  font-size: 0.875rem;
+  margin-top: 1rem;
+  display: none;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
 
 /* ===== Dashboard Layout ===== */
 .app-container {

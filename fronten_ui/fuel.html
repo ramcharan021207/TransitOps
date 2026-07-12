@@ -120,10 +120,10 @@
                         <div class="page-subtitle">Track fuel consumption and operational expenses.</div>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="document.getElementById('addFuelModal').classList.add('active')">
+                        <button class="btn btn-primary" data-open-modal="addFuelModal">
                             Add Fuel Record
                         </button>
-                        <button class="btn btn-primary" onclick="document.getElementById('addExpenseModal').classList.add('active')">
+                        <button class="btn btn-primary" data-open-modal="addExpenseModal">
                             Add Expense
                         </button>
                     </div>
@@ -151,7 +151,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="fuel-table-body">
                             <tr>
                                 <td>TRX-8291</td>
                                 <td>Diesel</td>
@@ -192,7 +192,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="expense-table-body">
                             <tr>
                                 <td>TRX-8291</td>
                                 <td>Maintenance</td>
@@ -228,7 +228,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Add Fuel Record</h3>
-                <button class="modal-close" onclick="document.getElementById('addFuelModal').classList.remove('active')">&times;</button>
+                <button class="modal-close" data-close-modal="addFuelModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="addFuelForm">
@@ -264,8 +264,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addFuelModal').classList.remove('active')">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('addFuelModal').classList.remove('active')">Save</button>
+                <button type="button" class="btn btn-secondary" data-close-modal="addFuelModal">Cancel</button>
+                <button type="button" class="btn btn-primary">Save</button>
             </div>
         </div>
     </div>
@@ -275,7 +275,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Add Expense</h3>
-                <button class="modal-close" onclick="document.getElementById('addExpenseModal').classList.remove('active')">&times;</button>
+                <button class="modal-close" data-close-modal="addExpenseModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="addExpenseForm">
@@ -303,11 +303,13 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addExpenseModal').classList.remove('active')">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('addExpenseModal').classList.remove('active')">Save</button>
+                <button type="button" class="btn btn-secondary" data-close-modal="addExpenseModal">Cancel</button>
+                <button type="button" class="btn btn-primary">Save</button>
             </div>
         </div>
     </div>
+    <script src="../frontend_logic/common.js"></script>
+    <script src="../frontend_logic/ui.js"></script>
 </body>
 </html>
 

@@ -119,7 +119,7 @@
                         <h1 class="page-title">Trip Management</h1>
                         <div class="page-subtitle">Schedule, track, and manage all transit operations.</div>
                     </div>
-                    <button class="btn btn-primary" onclick="document.getElementById('addTripModal').classList.add('active')">
+                    <button class="btn btn-primary" data-open-modal="addTripModal">
                         + Add Trip
                     </button>
                 </div>
@@ -155,7 +155,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="trip-table-body">
                             <tr>
                                 <td>TRP-2041</td>
                                 <td>TRX-8291</td>
@@ -229,7 +229,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Add Trip</h3>
-                <button class="modal-close" onclick="document.getElementById('addTripModal').classList.remove('active')">&times;</button>
+                <button class="modal-close" data-close-modal="addTripModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="addTripForm">
@@ -287,11 +287,13 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('addTripModal').classList.remove('active')">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('addTripModal').classList.remove('active')">Save</button>
+                <button type="button" class="btn btn-secondary" data-close-modal="addTripModal">Cancel</button>
+                <button type="button" class="btn btn-primary">Save</button>
             </div>
         </div>
     </div>
+    <script src="../frontend_logic/common.js"></script>
+    <script src="../frontend_logic/ui.js"></script>
 </body>
 </html>
 
