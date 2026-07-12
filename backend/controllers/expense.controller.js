@@ -40,40 +40,40 @@ function validateExpenseData(body, requireAll = true) {
   return errors;
 }
 
-exports.getAllExpenses = async (req, res) => {
+exports.getAllExpenses = async (req, res, next) => {
   try {
     const data = await ExpenseModel.getAll();
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getAllExpenses error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching expenses.' });
+    return next(error);
   }
 };
 
-exports.getExpenseById = async (req, res) => {
+exports.getExpenseById = async (req, res, next) => {
   try {
     const expense = await ExpenseModel.getById(req.params.id);
     if (!expense) {
-      return res.status(404).json({ success: false, message: 'Expense not found.' });
+      return res.failure('Expense not found.', 404);
     }
 
-    return res.status(200).json({ success: true, data: expense });
+    return res.success(expense);
   } catch (error) {
     console.error('getExpenseById error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching expense.' });
+    return next(error);
   }
 };
 
-exports.createExpense = async (req, res) => {
+exports.createExpense = async (req, res, next) => {
   try {
     const errors = validateExpenseData(req.body, true);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     const vehicle = await ExpenseModel.getVehicleById(req.body.vehicle_id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+      return res.failure('Vehicle not found.', 404);
     }
 
     const payload = {
@@ -85,56 +85,56 @@ exports.createExpense = async (req, res) => {
 
     const insertId = await ExpenseModel.create(payload);
     const newExpense = await ExpenseModel.getById(insertId);
-    return res.status(201).json({ success: true, data: newExpense });
+    return res.success(newExpense, 201);
   } catch (error) {
     console.error('createExpense error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while creating expense.' });
+    return next(error);
   }
 };
 
-exports.updateExpense = async (req, res) => {
+exports.updateExpense = async (req, res, next) => {
   try {
     const expense = await ExpenseModel.getById(req.params.id);
     if (!expense) {
-      return res.status(404).json({ success: false, message: 'Expense not found.' });
+      return res.failure('Expense not found.', 404);
     }
 
     const errors = validateExpenseData(req.body, false);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     if (req.body.vehicle_id !== undefined) {
       const vehicle = await ExpenseModel.getVehicleById(req.body.vehicle_id);
       if (!vehicle) {
-        return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+        return res.failure('Vehicle not found.', 404);
       }
     }
 
     const affectedRows = await ExpenseModel.update(req.params.id, req.body);
     if (affectedRows === 0) {
-      return res.status(400).json({ success: false, message: 'No valid fields provided to update.' });
+      return res.failure('No valid fields provided to update.', 400);
     }
 
     const updated = await ExpenseModel.getById(req.params.id);
-    return res.status(200).json({ success: true, data: updated });
+    return res.success(updated);
   } catch (error) {
     console.error('updateExpense error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while updating expense.' });
+    return next(error);
   }
 };
 
-exports.deleteExpense = async (req, res) => {
+exports.deleteExpense = async (req, res, next) => {
   try {
     const expense = await ExpenseModel.getById(req.params.id);
     if (!expense) {
-      return res.status(404).json({ success: false, message: 'Expense not found.' });
+      return res.failure('Expense not found.', 404);
     }
 
     await ExpenseModel.delete(req.params.id);
-    return res.status(200).json({ success: true, data: { message: 'Expense deleted successfully.' } });
+    return res.success({ message: 'Expense deleted successfully.' });
   } catch (error) {
     console.error('deleteExpense error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while deleting expense.' });
+    return next(error);
   }
 };

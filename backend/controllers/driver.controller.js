@@ -71,57 +71,47 @@ function validateDriverData(body, requireAll = true) {
 }
 
 // ─── GET /api/drivers ─────────────────────────────────────────────────────────
-exports.getAllDrivers = async (req, res) => {
+exports.getAllDrivers = async (req, res, next) => {
   try {
     const data = await DriverModel.getAll();
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getAllDrivers error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'Database error while fetching drivers.' });
+    return next(error);
   }
 };
 
 // ─── GET /api/drivers/:id ─────────────────────────────────────────────────────
-exports.getDriverById = async (req, res) => {
+exports.getDriverById = async (req, res, next) => {
   try {
     const driver = await DriverModel.getById(req.params.id);
     if (!driver) {
-      return res.status(404).json({ success: false, message: 'Driver not found.' });
+      return res.failure('Driver not found.', 404);
     }
-    return res.status(200).json({ success: true, data: driver });
+    return res.success(driver);
   } catch (error) {
     console.error('getDriverById error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'Database error while fetching driver.' });
+    return next(error);
   }
 };
 
 // ─── POST /api/drivers ────────────────────────────────────────────────────────
-exports.createDriver = async (req, res) => {
+exports.createDriver = async (req, res, next) => {
   try {
-    // Validate all required fields
     const errors = validateDriverData(req.body, true);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     // License number uniqueness check
     const existingLicense = await DriverModel.findByLicense(req.body.license_number);
     if (existingLicense) {
-      return res
-        .status(409)
-        .json({ success: false, message: 'License number already exists.' });
+      return res.failure('License number already exists.', 409);
     }
 
-    // Phone uniqueness check
     const existingPhone = await DriverModel.findByPhone(req.body.phone);
     if (existingPhone) {
-      return res
-        .status(409)
-        .json({ success: false, message: 'Phone number already exists.' });
+      return res.failure('Phone number already exists.', 409);
     }
 
     const payload = {
@@ -137,27 +127,24 @@ exports.createDriver = async (req, res) => {
     const insertId = await DriverModel.create(payload);
     const newDriver = await DriverModel.getById(insertId);
 
-    return res.status(201).json({ success: true, data: newDriver });
+    return res.success(newDriver, 201);
   } catch (error) {
     console.error('createDriver error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'Database error while creating driver.' });
+    return next(error);
   }
 };
 
 // ─── PUT /api/drivers/:id ─────────────────────────────────────────────────────
-exports.updateDriver = async (req, res) => {
+exports.updateDriver = async (req, res, next) => {
   try {
     const driver = await DriverModel.getById(req.params.id);
     if (!driver) {
-      return res.status(404).json({ success: false, message: 'Driver not found.' });
+      return res.failure('Driver not found.', 404);
     }
 
-    // Partial validation - only validate fields that are sent
     const errors = validateDriverData(req.body, false);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     // License uniqueness - exclude current driver
@@ -167,9 +154,7 @@ exports.updateDriver = async (req, res) => {
         req.params.id
       );
       if (existingLicense) {
-        return res
-          .status(409)
-          .json({ success: false, message: 'License number already exists.' });
+        return res.failure('License number already exists.', 409);
       }
     }
 
@@ -180,45 +165,35 @@ exports.updateDriver = async (req, res) => {
         req.params.id
       );
       if (existingPhone) {
-        return res
-          .status(409)
-          .json({ success: false, message: 'Phone number already exists.' });
+        return res.failure('Phone number already exists.', 409);
       }
     }
 
     const affectedRows = await DriverModel.update(req.params.id, req.body);
     if (affectedRows === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: 'No valid fields provided to update.' });
+      return res.failure('No valid fields provided to update.', 400);
     }
 
     const updated = await DriverModel.getById(req.params.id);
-    return res.status(200).json({ success: true, data: updated });
+    return res.success(updated);
   } catch (error) {
     console.error('updateDriver error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'Database error while updating driver.' });
+    return next(error);
   }
 };
 
 // ─── DELETE /api/drivers/:id ──────────────────────────────────────────────────
-exports.deleteDriver = async (req, res) => {
+exports.deleteDriver = async (req, res, next) => {
   try {
     const driver = await DriverModel.getById(req.params.id);
     if (!driver) {
-      return res.status(404).json({ success: false, message: 'Driver not found.' });
+      return res.failure('Driver not found.', 404);
     }
 
     await DriverModel.delete(req.params.id);
-    return res
-      .status(200)
-      .json({ success: true, data: { message: 'Driver deleted successfully.' } });
+    return res.success({ message: 'Driver deleted successfully.' });
   } catch (error) {
     console.error('deleteDriver error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'Database error while deleting driver.' });
+    return next(error);
   }
 };

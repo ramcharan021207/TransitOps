@@ -47,40 +47,40 @@ function validateFuelData(body, requireAll = true) {
   return errors;
 }
 
-exports.getAllFuelLogs = async (req, res) => {
+exports.getAllFuelLogs = async (req, res, next) => {
   try {
     const data = await FuelModel.getAll();
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getAllFuelLogs error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching fuel logs.' });
+    return next(error);
   }
 };
 
-exports.getFuelLogById = async (req, res) => {
+exports.getFuelLogById = async (req, res, next) => {
   try {
     const fuelLog = await FuelModel.getById(req.params.id);
     if (!fuelLog) {
-      return res.status(404).json({ success: false, message: 'Fuel log not found.' });
+      return res.failure('Fuel log not found.', 404);
     }
 
-    return res.status(200).json({ success: true, data: fuelLog });
+    return res.success(fuelLog);
   } catch (error) {
     console.error('getFuelLogById error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching fuel log.' });
+    return next(error);
   }
 };
 
-exports.createFuelLog = async (req, res) => {
+exports.createFuelLog = async (req, res, next) => {
   try {
     const errors = validateFuelData(req.body, true);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     const vehicle = await FuelModel.getVehicleById(req.body.vehicle_id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+      return res.failure('Vehicle not found.', 404);
     }
 
     const payload = {
@@ -93,56 +93,56 @@ exports.createFuelLog = async (req, res) => {
 
     const insertId = await FuelModel.create(payload);
     const newFuelLog = await FuelModel.getById(insertId);
-    return res.status(201).json({ success: true, data: newFuelLog });
+    return res.success(newFuelLog, 201);
   } catch (error) {
     console.error('createFuelLog error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while creating fuel log.' });
+    return next(error);
   }
 };
 
-exports.updateFuelLog = async (req, res) => {
+exports.updateFuelLog = async (req, res, next) => {
   try {
     const fuelLog = await FuelModel.getById(req.params.id);
     if (!fuelLog) {
-      return res.status(404).json({ success: false, message: 'Fuel log not found.' });
+      return res.failure('Fuel log not found.', 404);
     }
 
     const errors = validateFuelData(req.body, false);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     if (req.body.vehicle_id !== undefined) {
       const vehicle = await FuelModel.getVehicleById(req.body.vehicle_id);
       if (!vehicle) {
-        return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+        return res.failure('Vehicle not found.', 404);
       }
     }
 
     const affectedRows = await FuelModel.update(req.params.id, req.body);
     if (affectedRows === 0) {
-      return res.status(400).json({ success: false, message: 'No valid fields provided to update.' });
+      return res.failure('No valid fields provided to update.', 400);
     }
 
     const updated = await FuelModel.getById(req.params.id);
-    return res.status(200).json({ success: true, data: updated });
+    return res.success(updated);
   } catch (error) {
     console.error('updateFuelLog error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while updating fuel log.' });
+    return next(error);
   }
 };
 
-exports.deleteFuelLog = async (req, res) => {
+exports.deleteFuelLog = async (req, res, next) => {
   try {
     const fuelLog = await FuelModel.getById(req.params.id);
     if (!fuelLog) {
-      return res.status(404).json({ success: false, message: 'Fuel log not found.' });
+      return res.failure('Fuel log not found.', 404);
     }
 
     await FuelModel.delete(req.params.id);
-    return res.status(200).json({ success: true, data: { message: 'Fuel log deleted successfully.' } });
+    return res.success({ message: 'Fuel log deleted successfully.' });
   } catch (error) {
     console.error('deleteFuelLog error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while deleting fuel log.' });
+    return next(error);
   }
 };

@@ -47,37 +47,36 @@ function validateTripData(body, requireAll = true) {
 }
 
 // ─── GET /api/trips ───────────────────────────────────────────────────────────
-exports.getAllTrips = async (req, res) => {
+exports.getAllTrips = async (req, res, next) => {
   try {
     const data = await TripModel.getAll();
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getAllTrips error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching trips.' });
+    return next(error);
   }
 };
 
 // ─── GET /api/trips/:id ───────────────────────────────────────────────────────
-exports.getTripById = async (req, res) => {
+exports.getTripById = async (req, res, next) => {
   try {
     const trip = await TripModel.getById(req.params.id);
     if (!trip) {
-      return res.status(404).json({ success: false, message: 'Trip not found.' });
+      return res.failure('Trip not found.', 404);
     }
-    return res.status(200).json({ success: true, data: trip });
+    return res.success(trip);
   } catch (error) {
     console.error('getTripById error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching trip.' });
+    return next(error);
   }
 };
 
 // ─── POST /api/trips ──────────────────────────────────────────────────────────
-exports.createTrip = async (req, res) => {
+exports.createTrip = async (req, res, next) => {
   try {
-    // 1. Validate required fields
     const errors = validateTripData(req.body, true);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     const { vehicle_id, driver_id } = req.body;
@@ -85,24 +84,24 @@ exports.createTrip = async (req, res) => {
     // 2. Vehicle must exist and be Available
     const vehicle = await TripModel.getVehicleStatus(vehicle_id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+      return res.failure('Vehicle not found.', 404);
     }
     if (vehicle.status !== 'Available') {
       return res.status(409).json({
         success: false,
-        message: Vehicle is not available. Current status: .,
+        message: `Vehicle is not available. Current status: ${vehicle.status}.`,
       });
     }
 
     // 3. Driver must exist and be Available
     const driver = await TripModel.getDriverStatus(driver_id);
     if (!driver) {
-      return res.status(404).json({ success: false, message: 'Driver not found.' });
+      return res.failure('Driver not found.', 404);
     }
     if (driver.status !== 'Available') {
       return res.status(409).json({
         success: false,
-        message: Driver is not available. Current status: .,
+        message: `Driver is not available. Current status: ${driver.status}.`,
       });
     }
 
@@ -116,26 +115,24 @@ exports.createTrip = async (req, res) => {
     }
 
     const newTrip = await TripModel.getById(insertId);
-    return res.status(201).json({ success: true, data: newTrip });
+    return res.success(newTrip, 201);
   } catch (error) {
     console.error('createTrip error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while creating trip.' });
+    return next(error);
   }
 };
 
 // ─── PUT /api/trips/:id ───────────────────────────────────────────────────────
-exports.updateTrip = async (req, res) => {
+exports.updateTrip = async (req, res, next) => {
   try {
-    // 1. Trip must exist
     const trip = await TripModel.getById(req.params.id);
     if (!trip) {
-      return res.status(404).json({ success: false, message: 'Trip not found.' });
+      return res.failure('Trip not found.', 404);
     }
 
-    // 2. Partial validation
     const errors = validateTripData(req.body, false);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
     const newStatus = req.body.status;
@@ -144,12 +141,12 @@ exports.updateTrip = async (req, res) => {
     if (req.body.vehicle_id && req.body.vehicle_id !== trip.vehicle_id) {
       const vehicle = await TripModel.getVehicleStatus(req.body.vehicle_id);
       if (!vehicle) {
-        return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+        return res.failure('Vehicle not found.', 404);
       }
       if (vehicle.status !== 'Available') {
         return res.status(409).json({
           success: false,
-          message: Vehicle is not available. Current status: .,
+          message: `Vehicle is not available. Current status: ${vehicle.status}.`,
         });
       }
     }
@@ -157,12 +154,12 @@ exports.updateTrip = async (req, res) => {
     if (req.body.driver_id && req.body.driver_id !== trip.driver_id) {
       const driver = await TripModel.getDriverStatus(req.body.driver_id);
       if (!driver) {
-        return res.status(404).json({ success: false, message: 'Driver not found.' });
+        return res.failure('Driver not found.', 404);
       }
       if (driver.status !== 'Available') {
         return res.status(409).json({
           success: false,
-          message: Driver is not available. Current status: .,
+          message: `Driver is not available. Current status: ${driver.status}.`,
         });
       }
     }
@@ -186,37 +183,33 @@ exports.updateTrip = async (req, res) => {
     // 5. Persist the update
     const affectedRows = await TripModel.update(req.params.id, req.body);
     if (affectedRows === 0) {
-      return res.status(400).json({ success: false, message: 'No valid fields provided to update.' });
+      return res.failure('No valid fields provided to update.', 400);
     }
 
     const updated = await TripModel.getById(req.params.id);
-    return res.status(200).json({ success: true, data: updated });
+    return res.success(updated);
   } catch (error) {
     console.error('updateTrip error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while updating trip.' });
+    return next(error);
   }
 };
 
 // ─── DELETE /api/trips/:id ────────────────────────────────────────────────────
-exports.deleteTrip = async (req, res) => {
+exports.deleteTrip = async (req, res, next) => {
   try {
     const trip = await TripModel.getById(req.params.id);
     if (!trip) {
-      return res.status(404).json({ success: false, message: 'Trip not found.' });
+      return res.failure('Trip not found.', 404);
     }
 
-    // Prevent deleting a trip that is actively In Progress
     if (trip.status === 'In Progress') {
-      return res.status(409).json({
-        success: false,
-        message: 'Cannot delete a trip that is currently In Progress. Complete or cancel it first.',
-      });
+      return res.failure('Cannot delete a trip that is currently In Progress. Complete or cancel it first.', 409);
     }
 
     await TripModel.delete(req.params.id);
-    return res.status(200).json({ success: true, data: { message: 'Trip deleted successfully.' } });
+    return res.success({ message: 'Trip deleted successfully.' });
   } catch (error) {
     console.error('deleteTrip error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while deleting trip.' });
+    return next(error);
   }
 };

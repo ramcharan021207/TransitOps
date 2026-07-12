@@ -3,42 +3,42 @@
 
 const ReportModel = require('../models/report.model');
 
-exports.getDashboard = async (req, res) => {
+exports.getDashboard = async (req, res, next) => {
   try {
     const data = await ReportModel.getDashboardStats();
-    return res.status(200).json(data);
+    return res.success(data);
   } catch (error) {
     console.error('getDashboard error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching dashboard report.' });
+    return next(error);
   }
 };
 
-exports.getRecentTrips = async (req, res) => {
+exports.getRecentTrips = async (req, res, next) => {
   try {
     const data = await ReportModel.getRecentTrips(10);
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getRecentTrips error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching recent trips.' });
+    return next(error);
   }
 };
 
-exports.getRecentMaintenance = async (req, res) => {
+exports.getRecentMaintenance = async (req, res, next) => {
   try {
     const data = await ReportModel.getRecentMaintenance(10);
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getRecentMaintenance error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching recent maintenance.' });
+    return next(error);
   }
 };
 
-exports.getRecentFuel = async (req, res) => {
+exports.getRecentFuel = async (req, res, next) => {
   try {
     const data = await ReportModel.getRecentFuel(10);
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getRecentFuel error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching recent fuel logs.' });
+    return next(error);
   }
 };

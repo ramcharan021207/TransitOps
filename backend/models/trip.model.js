@@ -8,7 +8,7 @@ class TripModel {
 
   // ── Fetch all trips (joined with vehicle & driver names) ─────────────────────
   static async getAll() {
-    const sql = 
+    const sql = `
       SELECT
         t.*,
         v.registration_number,
@@ -18,14 +18,14 @@ class TripModel {
       LEFT JOIN Vehicles v ON t.vehicle_id  = v.vehicle_id
       LEFT JOIN Drivers  d ON t.driver_id   = d.driver_id
       ORDER BY t.trip_id DESC
-    ;
+    `;
     const [rows] = await db.query(sql);
     return rows;
   }
 
   // ── Fetch one trip by PK (with join) ────────────────────────────────────────
   static async getById(id) {
-    const sql = 
+    const sql = `
       SELECT
         t.*,
         v.registration_number,
@@ -35,7 +35,7 @@ class TripModel {
       LEFT JOIN Vehicles v ON t.vehicle_id  = v.vehicle_id
       LEFT JOIN Drivers  d ON t.driver_id   = d.driver_id
       WHERE t.trip_id = ?
-    ;
+    `;
     const [rows] = await db.query(sql, [id]);
     return rows[0];
   }
@@ -51,11 +51,11 @@ class TripModel {
       notes,
     } = data;
 
-    const sql = 
+    const sql = `
       INSERT INTO Trips
         (vehicle_id, driver_id, origin, destination, start_time, status, notes)
       VALUES (?, ?, ?, ?, ?, 'Scheduled', ?)
-    ;
+    `;
     const [result] = await db.execute(sql, [
       vehicle_id,
       driver_id,

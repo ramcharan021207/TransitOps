@@ -57,11 +57,11 @@ class DriverModel {
       status,
     } = data;
 
-    const sql = 
+    const sql = `
       INSERT INTO Drivers
         (name, license_number, license_category, license_expiry, phone, safety_score, status)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    ;
+    `;
 
     const [result] = await db.execute(sql, [
       name,

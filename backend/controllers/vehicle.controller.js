@@ -54,43 +54,41 @@ function validateVehicleData(body, requireAll = true) {
 }
 
 // ─── GET /api/vehicles ────────────────────────────────────────────────────────
-exports.getAllVehicles = async (req, res) => {
+exports.getAllVehicles = async (req, res, next) => {
   try {
     const data = await VehicleModel.getAll();
-    return res.status(200).json({ success: true, data });
+    return res.success(data);
   } catch (error) {
     console.error('getAllVehicles error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching vehicles.' });
+    return next(error);
   }
 };
 
 // ─── GET /api/vehicles/:id ────────────────────────────────────────────────────
-exports.getVehicleById = async (req, res) => {
+exports.getVehicleById = async (req, res, next) => {
   try {
     const vehicle = await VehicleModel.getById(req.params.id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+      return res.failure('Vehicle not found.', 404);
     }
-    return res.status(200).json({ success: true, data: vehicle });
+    return res.success(vehicle);
   } catch (error) {
     console.error('getVehicleById error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while fetching vehicle.' });
+    return next(error);
   }
 };
 
 // ─── POST /api/vehicles ───────────────────────────────────────────────────────
-exports.createVehicle = async (req, res) => {
+exports.createVehicle = async (req, res, next) => {
   try {
-    // Validation
     const errors = validateVehicleData(req.body, true);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
-    // Check registration uniqueness
     const existing = await VehicleModel.findByRegistration(req.body.registration_number);
     if (existing) {
-      return res.status(409).json({ success: false, message: 'Registration already exists.' });
+      return res.failure('Registration already exists.', 409);
     }
 
     // Set defaults for optional numeric fields
@@ -107,60 +105,58 @@ exports.createVehicle = async (req, res) => {
     const insertId = await VehicleModel.create(payload);
     const newVehicle = await VehicleModel.getById(insertId);
 
-    return res.status(201).json({ success: true, data: newVehicle });
+    return res.success(newVehicle, 201);
   } catch (error) {
     console.error('createVehicle error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while creating vehicle.' });
+    return next(error);
   }
 };
 
 // ─── PUT /api/vehicles/:id ────────────────────────────────────────────────────
-exports.updateVehicle = async (req, res) => {
+exports.updateVehicle = async (req, res, next) => {
   try {
     const vehicle = await VehicleModel.getById(req.params.id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+      return res.failure('Vehicle not found.', 404);
     }
 
-    // Partial validation (requireAll = false)
     const errors = validateVehicleData(req.body, false);
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: errors.join(' ') });
+      return res.failure(errors.join(' '), 400);
     }
 
-    // Check registration uniqueness (exclude current vehicle)
     if (req.body.registration_number) {
       const existing = await VehicleModel.findByRegistration(req.body.registration_number, req.params.id);
       if (existing) {
-        return res.status(409).json({ success: false, message: 'Registration already exists.' });
+        return res.failure('Registration already exists.', 409);
       }
     }
 
     const affectedRows = await VehicleModel.update(req.params.id, req.body);
     if (affectedRows === 0) {
-      return res.status(400).json({ success: false, message: 'No valid fields provided to update.' });
+      return res.failure('No valid fields provided to update.', 400);
     }
 
     const updated = await VehicleModel.getById(req.params.id);
-    return res.status(200).json({ success: true, data: updated });
+    return res.success(updated);
   } catch (error) {
     console.error('updateVehicle error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while updating vehicle.' });
+    return next(error);
   }
 };
 
 // ─── DELETE /api/vehicles/:id ─────────────────────────────────────────────────
-exports.deleteVehicle = async (req, res) => {
+exports.deleteVehicle = async (req, res, next) => {
   try {
     const vehicle = await VehicleModel.getById(req.params.id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found.' });
+      return res.failure('Vehicle not found.', 404);
     }
 
     await VehicleModel.delete(req.params.id);
-    return res.status(200).json({ success: true, data: { message: 'Vehicle deleted successfully.' } });
+    return res.success({ message: 'Vehicle deleted successfully.' });
   } catch (error) {
     console.error('deleteVehicle error:', error);
-    return res.status(500).json({ success: false, message: 'Database error while deleting vehicle.' });
+    return next(error);
   }
 };
