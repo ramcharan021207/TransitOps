@@ -120,13 +120,32 @@
                     <div class="dash-card">
                         <div class="card-info">
                             <h3>Active Vehicles</h3>
-                            <div class="card-value">142</div>
-                            <div class="text-secondary mt-1" style="font-size: 0.8rem;">
-                                <span style="color: var(--success);">↑ 4%</span> vs last week
-                            </div>
+                            <div class="card-value">--</div>
                         </div>
                         <div class="card-icon primary">
                             <svg viewBox="0 0 24 24"><path d="M20,8h-3V6c0-1.1-0.9-2-2-2H9C7.9,4,7,4.9,7,6v2H4c-1.1,0-2,0.9-2,2v10h20V10C22,8.9,21.1,8,20,8z M9,6h6v2H9V6z M20,18H4v-8h16V18z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Available Vehicles Card -->
+                    <div class="dash-card">
+                        <div class="card-info">
+                            <h3>Available Vehicles</h3>
+                            <div class="card-value">--</div>
+                        </div>
+                        <div class="card-icon success">
+                            <svg viewBox="0 0 24 24"><path d="M20,8h-3V6c0-1.1-0.9-2-2-2H9C7.9,4,7,4.9,7,6v2H4c-1.1,0-2,0.9-2,2v10h20V10C22,8.9,21.1,8,20,8z M9,6h6v2H9V6z M20,18H4v-8h16V18z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Vehicles In Maintenance Card -->
+                    <div class="dash-card">
+                        <div class="card-info">
+                            <h3>Vehicles In Maintenance</h3>
+                            <div class="card-value">0</div>
+                        </div>
+                        <div class="card-icon warning">
+                            <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
                         </div>
                     </div>
 
@@ -134,12 +153,20 @@
                     <div class="dash-card">
                         <div class="card-info">
                             <h3>Active Trips</h3>
-                            <div class="card-value">38</div>
-                            <div class="text-secondary mt-1" style="font-size: 0.8rem;">
-                                <span style="color: var(--success);">↑ 12%</span> vs last week
-                            </div>
+                            <div class="card-value">--</div>
                         </div>
                         <div class="card-icon secondary">
+                            <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Pending Trips Card -->
+                    <div class="dash-card">
+                        <div class="card-info">
+                            <h3>Pending Trips</h3>
+                            <div class="card-value">0</div>
+                        </div>
+                        <div class="card-icon warning">
                             <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
                         </div>
                     </div>
@@ -148,27 +175,10 @@
                     <div class="dash-card">
                         <div class="card-info">
                             <h3>Drivers On Duty</h3>
-                            <div class="card-value">45</div>
-                            <div class="text-secondary mt-1" style="font-size: 0.8rem;">
-                                <span style="color: var(--warning);">↓ 2%</span> vs last week
-                            </div>
+                            <div class="card-value">--</div>
                         </div>
                         <div class="card-icon success">
                             <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        </div>
-                    </div>
-
-                    <!-- Maintenance Card -->
-                    <div class="dash-card">
-                        <div class="card-info">
-                            <h3>Maintenance</h3>
-                            <div class="card-value">12</div>
-                            <div class="text-secondary mt-1" style="font-size: 0.8rem;">
-                                Vehicles in shop
-                            </div>
-                        </div>
-                        <div class="card-icon warning">
-                            <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
                         </div>
                     </div>
 
@@ -176,24 +186,12 @@
                     <div class="dash-card">
                         <div class="card-info">
                             <h3>Fleet Utilization</h3>
-                            <div class="card-value">85%</div>
-                            <div class="text-secondary mt-1" style="font-size: 0.8rem;">
-                                Target: 90%
-                            </div>
+                            <div class="card-value">--</div>
                         </div>
                         <div class="card-icon primary">
                             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
                         </div>
                     </div>
-                </div>
-
-                <!-- Empty state / additional content placeholder -->
-                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3rem; text-align: center; color: var(--text-secondary);">
-                    <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--border)" style="margin-bottom: 1rem;">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                    </svg>
-                    <h2>Additional Widgets</h2>
-                    <p class="mt-1">Charts and tables will appear here.</p>
                 </div>
             </div>
         </main>

@@ -1,15 +1,15 @@
 :root {
-  --primary: #714B67; /* Odoo-like purple */
-  --primary-hover: #5d3d55;
-  --secondary: #017e84; /* Odoo-like teal */
-  --background: #f9f9f9;
-  --surface: #ffffff;
-  --border: #e0e0e0;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --danger: #dc3545;
-  --success: #28a745;
-  --warning: #ffc107;
+  --primary: #D97706; /* Orange Accent */
+  --primary-hover: #b45309;
+  --secondary: #f59e0b; 
+  --background: #121212; /* Dark Background */
+  --surface: #1E1E1E; /* Dark Cards */
+  --border: #333333; /* Grey Borders */
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
   --font-family: 'Inter', 'Roboto', 'Segoe UI', sans-serif;
   --sidebar-width: 250px;
   --header-height: 60px;
@@ -121,7 +121,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-left {
   flex: 1;
-  background-color: var(--primary);
+  background-color: var(--surface);
+  border-right: 1px solid var(--border);
   color: white;
   padding: 3rem;
   display: flex;
@@ -231,7 +232,8 @@ h1, h2, h3, h4, h5, h6 {
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
-  background-color: var(--primary);
+  background-color: var(--surface);
+  border-right: 1px solid var(--border);
   color: white;
   display: flex;
   flex-direction: column;
