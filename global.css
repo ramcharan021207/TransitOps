@@ -720,3 +720,21 @@ h1, h2, h3, h4, h5, h6 {
   background-color: rgba(217, 119, 6, 0.1);
   color: var(--primary); 
 }
+
+/* Additional Layout Utilities */
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+.section-title {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.badge-active {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6; 
+}
