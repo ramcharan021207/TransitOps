@@ -6,38 +6,6 @@
  */
 
 /* ─────────────────────────────────────────────
-   DUMMY DATA
-   Simulated user credentials for UI validation.
-   No real authentication — frontend only.
-───────────────────────────────────────────── */
-const DUMMY_USERS = [
-  {
-    email: "admin@transitops.com",
-    password: "Admin@123",
-    role: "admin",
-    name: "Admin User",
-  },
-  {
-    email: "manager@transitops.com",
-    password: "Manager@123",
-    role: "manager",
-    name: "Fleet Manager",
-  },
-  {
-    email: "driver@transitops.com",
-    password: "Driver@123",
-    role: "driver",
-    name: "John Driver",
-  },
-  {
-    email: "dispatcher@transitops.com",
-    password: "Dispatch@123",
-    role: "dispatcher",
-    name: "Sarah Dispatcher",
-  },
-];
-
-/* ─────────────────────────────────────────────
    DOM REFERENCES
    Grab all required HTML elements by their IDs.
 ───────────────────────────────────────────── */
@@ -252,18 +220,18 @@ function setLoadingState(isLoading) {
 
 /* ─────────────────────────────────────────────
    SHOW FORM SUCCESS
-   Displays a success banner and redirects the
-   user to dashboard.html after a short delay.
-   @param {string} name — display name of matched user
+   Displays a generic success banner and redirects
+   the user to dashboard.html after a short delay.
+   Called after the real API confirms login (Hour 3).
 ───────────────────────────────────────────── */
-function showFormSuccess(name) {
+function showFormSuccess() {
   if (formSuccess) {
-    // Display welcome message with matched user's name
-    formSuccess.textContent = "Welcome back, " + name + "! Redirecting to dashboard...";
+    // Show a generic redirect message — no fake user name
+    formSuccess.textContent = "Login successful. Redirecting to dashboard...";
     formSuccess.classList.add("visible");
   }
 
-  // Simulate redirect to dashboard after 1.5 seconds
+  // Redirect to dashboard after 1.5 seconds
   setTimeout(function () {
     window.location.href = "dashboard.html";
   }, 1500);
@@ -272,9 +240,8 @@ function showFormSuccess(name) {
 /* ─────────────────────────────────────────────
    HANDLE FORM SUBMIT
    Runs all three validators on submission.
-   If all pass, checks credentials against dummy
-   data and either shows an error or routes to
-   the dashboard.
+   If all fields pass, sets the loading state and
+   hands off to the real API (wired in Hour 3).
    @param {Event} e — the form submit event
 ───────────────────────────────────────────── */
 function handleFormSubmit(e) {
@@ -295,40 +262,14 @@ function handleFormSubmit(e) {
   // Stop submission if any field is invalid
   if (!isEmailValid || !isPasswordValid || !isRoleValid) return;
 
-  // Retrieve trimmed input values for credential matching
-  const enteredEmail    = emailInput.value.trim().toLowerCase();
-  const enteredPassword = passwordInput.value;
-  const selectedRole    = roleSelect.value;
-
-  // Show loading state to provide UI feedback
+  // Show loading state while waiting for the API response
   setLoadingState(true);
 
-  // Simulate an 800ms processing delay (UI animation only)
-  setTimeout(function () {
-
-    // Search dummy users array for an exact match
-    const matchedUser = DUMMY_USERS.find(function (user) {
-      return (
-        user.email.toLowerCase() === enteredEmail &&
-        user.password === enteredPassword &&
-        user.role === selectedRole
-      );
-    });
-
-    // Restore the submit button to its normal state
-    setLoadingState(false);
-
-    if (matchedUser) {
-      // Credentials matched — show success banner and redirect
-      showFormSuccess(matchedUser.name);
-    } else {
-      // No match — display a descriptive error to the user
-      showError(
-        formError,
-        "Invalid email, password, or role. Please check your credentials."
-      );
-    }
-  }, 800);
+  // TODO
+  // Connect POST /login API during Hour 3.
+  // Send { email, password, role } to the Express endpoint.
+  // On success  → call showFormSuccess() to redirect to dashboard.
+  // On failure  → call setLoadingState(false) and showError(formError, message).
 }
 
 /* ─────────────────────────────────────────────

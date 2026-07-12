@@ -11,60 +11,56 @@
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ─── Dashboard KPI Cards Data ────────────────────────────────── */
+/* Values are placeholder "--" until the real API is connected (Hour 3). */
 const DASHBOARD_CARDS = [
-  {
-    id: "card-total-routes",
-    title: "Total Routes",
-    value: "128",
-    change: "+4 this week",
-    trend: "up",
-    icon: "🛣️",
-    color: "blue",
-  },
   {
     id: "card-active-vehicles",
     title: "Active Vehicles",
-    value: "74",
-    change: "-2 from yesterday",
-    trend: "down",
+    value: "--",
     icon: "🚌",
     color: "green",
   },
   {
-    id: "card-on-time-rate",
-    title: "On-Time Rate",
-    value: "92.3%",
-    change: "+1.2% this month",
-    trend: "up",
-    icon: "⏱️",
-    color: "purple",
+    id: "card-available-vehicles",
+    title: "Available Vehicles",
+    value: "--",
+    icon: "✅",
+    color: "blue",
   },
   {
-    id: "card-fuel-usage",
-    title: "Fuel Usage (L)",
-    value: "8,450",
-    change: "+320 from last week",
-    trend: "down",
-    icon: "⛽",
+    id: "card-vehicles-in-maintenance",
+    title: "Vehicles In Maintenance",
+    value: "--",
+    icon: "🔧",
     color: "orange",
   },
   {
-    id: "card-incidents",
-    title: "Incidents",
-    value: "3",
-    change: "-1 since last month",
-    trend: "up",
-    icon: "⚠️",
-    color: "red",
+    id: "card-active-trips",
+    title: "Active Trips",
+    value: "--",
+    icon: "🛣️",
+    color: "purple",
   },
   {
-    id: "card-drivers-active",
-    title: "Active Drivers",
-    value: "61",
-    change: "+5 this week",
-    trend: "up",
+    id: "card-pending-trips",
+    title: "Pending Trips",
+    value: "--",
+    icon: "⏳",
+    color: "yellow",
+  },
+  {
+    id: "card-drivers-on-duty",
+    title: "Drivers On Duty",
+    value: "--",
     icon: "👤",
     color: "teal",
+  },
+  {
+    id: "card-fleet-utilization",
+    title: "Fleet Utilization",
+    value: "--",
+    icon: "📊",
+    color: "red",
   },
 ];
 
@@ -546,6 +542,7 @@ function populateProfileData() {
    BUILD DASHBOARD CARDS
    Renders KPI summary cards from DASHBOARD_CARDS data into the
    cards container element.
+   Values are "--" placeholders until the real API is connected.
 ═══════════════════════════════════════════════════════════════════ */
 function buildDashboardCards() {
   if (!cardsContainer) return;
@@ -560,11 +557,8 @@ function buildDashboardCards() {
     cardEl.className = "dashboard-card card-" + card.color; // color class for CSS
     cardEl.id = card.id;
 
-    // Determine trend arrow direction indicator
-    const trendArrow = card.trend === "up" ? "▲" : "▼";
-    const trendClass = card.trend === "up" ? "trend-up" : "trend-down";
-
-    // Build card inner HTML structure
+    // Build card inner HTML — icon, title, and placeholder value only
+    // TODO: Populate card.value from API response during Hour 3
     cardEl.innerHTML =
       '<div class="card-header">' +
         '<span class="card-icon" aria-hidden="true">' + card.icon + '</span>' +
@@ -572,10 +566,6 @@ function buildDashboardCards() {
       '</div>' +
       '<div class="card-body">' +
         '<p class="card-value">' + card.value + '</p>' +
-        '<p class="card-change ' + trendClass + '">' +
-          '<span class="trend-arrow" aria-hidden="true">' + trendArrow + '</span> ' +
-          card.change +
-        '</p>' +
       '</div>';
 
     // Add hover lift effect via class — animation defined in CSS
