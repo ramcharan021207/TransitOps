@@ -710,3 +710,13 @@ h1, h2, h3, h4, h5, h6 {
 .btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* Driver Status Badges */
+.badge-offduty {
+  background-color: rgba(160, 160, 160, 0.1);
+  color: #a0a0a0; 
+}
+.badge-suspended {
+  background-color: rgba(217, 119, 6, 0.1);
+  color: var(--primary); 
+}
