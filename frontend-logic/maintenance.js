@@ -102,6 +102,9 @@ const maintSubmitBtn = document.getElementById("maint-submit-btn");
    @param {string}            msg  — message text to display
 ═══════════════════════════════════════════════════════════════════ */
 function showBanner(type, msg) {
+  if (typeof showToast === "function") {
+    showToast(msg, type);
+  }
   if (type === "error") {
     if (!maintErrorBanner || !maintErrorMsg) return;
 
@@ -196,6 +199,10 @@ function setSubmitLoading(isLoading) {
    shown — no fallback data is created.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadMaintenance() {
+  const container = document.querySelector(".table-container") || document.body;
+  if (typeof showLoadingOverlay === "function") {
+    showLoadingOverlay(container, true);
+  }
   try {
     // Show a temporary loading row while the request is in flight
     if (maintTableBody) {
@@ -212,12 +219,16 @@ async function loadMaintenance() {
     }
 
     // Parse the JSON array of maintenance objects
-    maintList = await response.json();
+    const body = await response.json();
+    maintList = body.data || body || [];
 
     // Render the full list into the table
     renderMaintTable(maintList);
 
   } catch (error) {
+    if (typeof handleApiError === "function") {
+      handleApiError(error, "Unable to load maintenance records from server.");
+    }
     // Network failure or bad response — show the error banner
     showBanner("error", "Unable to connect to backend server.");
 
@@ -227,6 +238,10 @@ async function loadMaintenance() {
 
     // Log technical detail for debugging
     console.error("[maintenance.js] loadMaintenance error:", error);
+  } finally {
+    if (typeof showLoadingOverlay === "function") {
+      showLoadingOverlay(container, false);
+    }
   }
 }
 

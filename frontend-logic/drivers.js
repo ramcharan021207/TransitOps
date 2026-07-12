@@ -95,6 +95,9 @@ const driverSubmitBtn   = document.getElementById("driver-submit-btn");
    @param {string}            msg  — message text
 ═══════════════════════════════════════════════════════════════════ */
 function showBanner(type, msg) {
+  if (typeof showToast === "function") {
+    showToast(msg, type);
+  }
   if (type === "error") {
     if (!driverErrorBanner || !driverErrorMsg) return;
 
@@ -188,6 +191,10 @@ function setSubmitLoading(isLoading) {
    error banner is shown — no fallback data is created.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadDrivers() {
+  const container = document.querySelector(".table-container") || document.body;
+  if (typeof showLoadingOverlay === "function") {
+    showLoadingOverlay(container, true);
+  }
   try {
     // Show a temporary loading row while the request is in flight
     if (driverTableBody) {
@@ -204,12 +211,16 @@ async function loadDrivers() {
     }
 
     // Parse the JSON array of driver objects
-    driverList = await response.json();
+    const body = await response.json();
+    driverList = body.data || body || [];
 
     // Render the full list
     renderDriverTable(driverList);
 
   } catch (error) {
+    if (typeof handleApiError === "function") {
+      handleApiError(error, "Unable to load drivers from server.");
+    }
     // Network failure or bad response — show the error banner
     showBanner("error", "Unable to connect to backend server.");
 
@@ -219,6 +230,10 @@ async function loadDrivers() {
 
     // Log the technical error for debugging
     console.error("[drivers.js] loadDrivers error:", error);
+  } finally {
+    if (typeof showLoadingOverlay === "function") {
+      showLoadingOverlay(container, false);
+    }
   }
 }
 

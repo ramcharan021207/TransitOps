@@ -152,6 +152,9 @@ const pageSuccessMsg    = document.getElementById("fuel-page-success-message");
    @param {string}            msg  — message text to display
 ═══════════════════════════════════════════════════════════════════ */
 function showBanner(type, msg) {
+  if (typeof showToast === "function") {
+    showToast(msg, type);
+  }
   if (type === "error") {
     if (!pageErrorBanner || !pageErrorMsg) return;
 
@@ -278,6 +281,10 @@ function setExpenseSubmitLoading(isLoading) {
    No fallback / dummy data is ever created.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadFuel() {
+  const container = document.querySelector("#fuel-table-body") ? document.querySelector("#fuel-table-body").closest(".table-container") : document.body;
+  if (typeof showLoadingOverlay === "function") {
+    showLoadingOverlay(container, true);
+  }
   try {
     // Show a temporary loading row while the request is in flight
     if (fuelTableBody) {
@@ -294,16 +301,24 @@ async function loadFuel() {
     }
 
     // Parse the JSON array
-    fuelList = await response.json();
+    const body = await response.json();
+    fuelList = body.data || body || [];
 
     // Render the full list
     renderFuelTable(fuelList);
 
   } catch (error) {
+    if (typeof handleApiError === "function") {
+      handleApiError(error, "Unable to load fuel logs from server.");
+    }
     showBanner("error", "Unable to connect to backend server.");
     if (fuelTableBody) fuelTableBody.innerHTML = "";
     showFuelEmptyState(true);
     console.error("[fuel.js] loadFuel error:", error);
+  } finally {
+    if (typeof showLoadingOverlay === "function") {
+      showLoadingOverlay(container, false);
+    }
   }
 }
 
@@ -747,6 +762,10 @@ function applyFuelFilters() {
    No fallback / dummy data is ever created.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadExpenses() {
+  const container = document.querySelector("#expense-table-body") ? document.querySelector("#expense-table-body").closest(".table-container") : document.body;
+  if (typeof showLoadingOverlay === "function") {
+    showLoadingOverlay(container, true);
+  }
   try {
     // Show a temporary loading row while the request is in flight
     if (expenseTableBody) {
@@ -763,16 +782,24 @@ async function loadExpenses() {
     }
 
     // Parse the JSON array
-    expenseList = await response.json();
+    const body = await response.json();
+    expenseList = body.data || body || [];
 
     // Render the full list
     renderExpenseTable(expenseList);
 
   } catch (error) {
+    if (typeof handleApiError === "function") {
+      handleApiError(error, "Unable to load expenses from server.");
+    }
     showBanner("error", "Unable to connect to backend server.");
     if (expenseTableBody) expenseTableBody.innerHTML = "";
     showExpenseEmptyState(true);
     console.error("[fuel.js] loadExpenses error:", error);
+  } finally {
+    if (typeof showLoadingOverlay === "function") {
+      showLoadingOverlay(container, false);
+    }
   }
 }
 

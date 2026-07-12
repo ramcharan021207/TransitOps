@@ -94,6 +94,9 @@ const submitBtn         = document.getElementById("vehicle-submit-btn");
    @param {string}            msg  — message text to display
 ═══════════════════════════════════════════════════════════════════ */
 function showBanner(type, msg) {
+  if (typeof showToast === "function") {
+    showToast(msg, type);
+  }
   if (type === "error") {
     if (!errorBanner || !errorBannerMsg) return;
 
@@ -187,6 +190,10 @@ function setSubmitLoading(isLoading) {
    the error banner is shown — no dummy data is created.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadVehicles() {
+  const container = document.querySelector(".table-container") || document.body;
+  if (typeof showLoadingOverlay === "function") {
+    showLoadingOverlay(container, true);
+  }
   try {
     // Show a loading placeholder in the table body while fetching
     if (tableBody) {
@@ -203,12 +210,16 @@ async function loadVehicles() {
     }
 
     // Parse the JSON array of vehicle objects
-    vehicleList = await response.json();
+    const body = await response.json();
+    vehicleList = body.data || body || [];
 
     // Render the full list into the table
     renderTable(vehicleList);
 
   } catch (error) {
+    if (typeof handleApiError === "function") {
+      handleApiError(error, "Unable to load vehicles registry from server.");
+    }
     // Network failure or server error — show the error banner
     showBanner(
       "error",
@@ -221,6 +232,10 @@ async function loadVehicles() {
 
     // Log the technical error to the console for debugging
     console.error("[fleet.js] loadVehicles error:", error);
+  } finally {
+    if (typeof showLoadingOverlay === "function") {
+      showLoadingOverlay(container, false);
+    }
   }
 }
 

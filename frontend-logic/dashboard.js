@@ -12,10 +12,10 @@
  *   - Logout
  *
  * API data (new):
- *   - GET /api/reports/dashboard      → KPI cards
- *   - GET /api/reports/recent-trips   → Recent trips panel
+ *   - GET /api/reports/dashboard          → KPI cards
+ *   - GET /api/reports/recent-trips       → Recent trips panel
  *   - GET /api/reports/recent-maintenance → Recent maintenance panel
- *   - GET /api/reports/recent-fuel    → Recent fuel panel
+ *   - GET /api/reports/recent-fuel        → Recent fuel panel
  *   - Auto-refresh every 30 seconds
  *
  * Rules:
@@ -105,64 +105,232 @@ const CURRENT_USER = {
 
 /* ─── Sidebar Navigation Items ─────────────────────────────────── */
 const NAV_ITEMS = [
-  { id: "nav-dashboard", label: "Dashboard", icon: "📊", href: "#dashboard" },
+  { id: "nav-dashboard", label: "Dashboard", icon: "📊", href: "dashboard.html" },
   { id: "nav-routes",    label: "Routes",    icon: "🛣️", href: "#routes"    },
-  { id: "nav-vehicles",  label: "Vehicles",  icon: "🚌", href: "#vehicles"  },
-  { id: "nav-drivers",   label: "Drivers",   icon: "👤", href: "#drivers"   },
-  { id: "nav-dispatch",  label: "Dispatch",  icon: "📋", href: "#dispatch"  },
-  { id: "nav-fuel",      label: "Fuel Logs", icon: "⛽", href: "#fuel"      },
-  { id: "nav-reports",   label: "Reports",   icon: "📈", href: "#reports"   },
-  { id: "nav-settings",  label: "Settings",  icon: "⚙️", href: "#settings"  },
+  { id: "nav-vehicles",  label: "Vehicles",  icon: "🚌", href: "fleet.html"  },
+  { id: "nav-drivers",   label: "Drivers",   icon: "👤", href: "drivers.html"    },
+  { id: "nav-dispatch",  label: "Dispatch",  icon: "📋", href: "trips.html"   },
+  { id: "nav-maintenance", label: "Maintenance", icon: "🔧", href: "maintenance.html" },
+  { id: "nav-fuel",      label: "Fuel Logs", icon: "⛽", href: "fuel.html"      },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════
    DOM REFERENCES — LAYOUT
+   Made let so they can be queries defensively by ID or class.
 ═══════════════════════════════════════════════════════════════════ */
-const sidebar          = document.getElementById("sidebar");
-const sidebarToggleBtn = document.getElementById("sidebar-toggle");
-const sidebarCloseBtn  = document.getElementById("sidebar-close");
-const mainContent      = document.getElementById("main-content");
-const overlay          = document.getElementById("sidebar-overlay");
+let sidebar          = null;
+let sidebarToggleBtn = null;
+let sidebarCloseBtn  = null;
+let mainContent      = null;
+let overlay          = null;
 
-const notifToggleBtn   = document.getElementById("notif-toggle");
-const notifDropdown    = document.getElementById("notif-dropdown");
-const notifBadge       = document.getElementById("notif-badge");
-const notifList        = document.getElementById("notif-list");
-const markAllReadBtn   = document.getElementById("mark-all-read");
+let notifToggleBtn   = null;
+let notifDropdown    = null;
+let notifBadge       = null;
+let notifList        = null;
+let markAllReadBtn   = null;
 
-const profileToggleBtn = document.getElementById("profile-toggle");
-const profileDropdown  = document.getElementById("profile-dropdown");
-const profileName      = document.getElementById("profile-name");
-const profileRole      = document.getElementById("profile-role");
-const profileAvatar    = document.getElementById("profile-avatar");
+let profileToggleBtn = null;
+let profileDropdown  = null;
+let profileName      = null;
+let profileRole      = null;
+let profileAvatar    = null;
 
-const navMenu          = document.getElementById("nav-menu");
-const cardsContainer   = document.getElementById("dashboard-cards");
-const logoutBtn        = document.getElementById("logout-btn");
-const currentDateTime  = document.getElementById("current-datetime");
-const pageTitle        = document.getElementById("page-title");
+let navMenu          = null;
+let cardsContainer   = null;
+let logoutBtn        = null;
+let currentDateTime  = null;
+let pageTitle        = null;
 
 /* ═══════════════════════════════════════════════════════════════════
    DOM REFERENCES — API DATA PANELS
    These elements receive live data loaded from the report APIs.
+   If missing in static HTML, they are dynamically created.
 ═══════════════════════════════════════════════════════════════════ */
-const dashErrorBanner   = document.getElementById("dash-error-banner");
-const dashErrorMsg      = document.getElementById("dash-error-message");
+let dashErrorBanner   = null;
+let dashErrorMsg      = null;
 
 // ── Recent Trips panel
-const recentTripsBody   = document.getElementById("recent-trips-body");
-const recentTripsEmpty  = document.getElementById("recent-trips-empty");
+let recentTripsBody   = null;
+let recentTripsEmpty  = null;
 
 // ── Recent Maintenance panel
-const recentMaintBody   = document.getElementById("recent-maint-body");
-const recentMaintEmpty  = document.getElementById("recent-maint-empty");
+let recentMaintBody   = null;
+let recentMaintEmpty  = null;
 
 // ── Recent Fuel panel
-const recentFuelBody    = document.getElementById("recent-fuel-body");
-const recentFuelEmpty   = document.getElementById("recent-fuel-empty");
+let recentFuelBody    = null;
+let recentFuelEmpty   = null;
 
 // ── Last-refreshed timestamp display
-const lastRefreshedEl   = document.getElementById("last-refreshed");
+let lastRefreshedEl   = null;
+
+/* ═══════════════════════════════════════════════════════════════════
+   DYNAMIC DOM INITIALIZATION
+   Since dashboard.html might not contain tables for recent items or
+   error banners statically, this function builds them dynamically.
+═══════════════════════════════════════════════════════════════════ */
+function ensureDomElementsExist() {
+  const dashboardView = document.querySelector(".dashboard-view");
+  if (!dashboardView) return;
+
+  // ── 1. Error Banner
+  let errorBanner = document.getElementById("dash-error-banner");
+  if (!errorBanner) {
+    errorBanner = document.createElement("div");
+    errorBanner.id = "dash-error-banner";
+    errorBanner.className = "hidden";
+    errorBanner.style.cssText = "display: none; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: 500;";
+    
+    const errMsg = document.createElement("span");
+    errMsg.id = "dash-error-message";
+    errorBanner.appendChild(errMsg);
+    
+    dashboardView.insertBefore(errorBanner, dashboardView.firstChild);
+  }
+
+  // ── 2. Last Refreshed Text in header
+  const pageHeader = document.querySelector(".page-header");
+  if (pageHeader && !document.getElementById("last-refreshed")) {
+    const refreshed = document.createElement("div");
+    refreshed.id = "last-refreshed";
+    refreshed.style.cssText = "font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;";
+    refreshed.textContent = "Loading...";
+    pageHeader.appendChild(refreshed);
+  }
+
+  // ── 3. Live clock container in header (if not already there)
+  if (pageHeader && !document.getElementById("current-datetime")) {
+    const clockDiv = document.createElement("div");
+    clockDiv.id = "current-datetime";
+    clockDiv.style.cssText = "font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem; font-weight: 500;";
+    pageHeader.appendChild(clockDiv);
+  }
+
+  // ── 4. Tables details sections
+  let detailsGrid = document.getElementById("dashboard-details-grid");
+  if (!detailsGrid) {
+    detailsGrid = document.createElement("div");
+    detailsGrid.id = "dashboard-details-grid";
+    detailsGrid.style.cssText = "display: flex; flex-direction: column; gap: 2rem; margin-top: 2rem;";
+
+    // Recent Trips section
+    const tripsSection = document.createElement("div");
+    tripsSection.className = "details-section";
+    tripsSection.innerHTML = `
+      <h2 class="section-title" style="margin-bottom: 1rem;">Recent Trips</h2>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Vehicle</th>
+              <th>Route</th>
+              <th>Driver</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="recent-trips-body"></tbody>
+        </table>
+      </div>
+      <div id="recent-trips-empty" class="hidden" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">No recent trips found.</div>
+    `;
+    detailsGrid.appendChild(tripsSection);
+
+    // Double columns for Maintenance and Fuel
+    const splitGrid = document.createElement("div");
+    splitGrid.style.cssText = "display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem;";
+
+    // Recent Maintenance section
+    const maintSection = document.createElement("div");
+    maintSection.className = "details-section";
+    maintSection.innerHTML = `
+      <h2 class="section-title" style="margin-bottom: 1rem;">Recent Maintenance</h2>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Type</th>
+              <th>Scheduled</th>
+              <th>Technician</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="recent-maint-body"></tbody>
+        </table>
+      </div>
+      <div id="recent-maint-empty" class="hidden" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">No maintenance records found.</div>
+    `;
+    splitGrid.appendChild(maintSection);
+
+    // Recent Fuel logs section
+    const fuelSection = document.createElement("div");
+    fuelSection.className = "details-section";
+    fuelSection.innerHTML = `
+      <h2 class="section-title" style="margin-bottom: 1rem;">Recent Fuel Logs</h2>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Type</th>
+              <th>Litres</th>
+              <th>Cost</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="recent-fuel-body"></tbody>
+        </table>
+      </div>
+      <div id="recent-fuel-empty" class="hidden" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">No recent fuel logs found.</div>
+    `;
+    splitGrid.appendChild(fuelSection);
+
+    detailsGrid.appendChild(splitGrid);
+    dashboardView.appendChild(detailsGrid);
+  }
+
+  // ── Populate DOM References
+  sidebar            = document.querySelector(".sidebar") || document.getElementById("sidebar");
+  sidebarToggleBtn   = document.getElementById("sidebar-toggle");
+  sidebarCloseBtn    = document.getElementById("sidebar-close");
+  mainContent        = document.querySelector(".main-content") || document.getElementById("main-content");
+  overlay            = document.getElementById("sidebar-overlay");
+
+  notifToggleBtn     = document.getElementById("notif-toggle") || document.querySelector(".icon-btn"); // Fallback to first icon-btn
+  notifDropdown      = document.getElementById("notif-dropdown");
+  notifBadge         = document.getElementById("notif-badge") || (notifToggleBtn ? notifToggleBtn.querySelector(".badge") : null);
+  notifList          = document.getElementById("notif-list");
+  markAllReadBtn     = document.getElementById("mark-all-read");
+
+  profileToggleBtn   = document.getElementById("profile-toggle") || document.querySelector(".profile-dropdown");
+  profileDropdown    = document.getElementById("profile-dropdown");
+  profileName        = document.getElementById("profile-name") || (profileToggleBtn ? profileToggleBtn.querySelector(".profile-name") : null);
+  profileRole        = document.getElementById("profile-role");
+  profileAvatar      = document.getElementById("profile-avatar") || (profileToggleBtn ? profileToggleBtn.querySelector(".profile-avatar") : null);
+
+  navMenu            = document.getElementById("nav-menu") || (sidebar ? sidebar.querySelector(".sidebar-nav") : null);
+  cardsContainer     = document.getElementById("dashboard-cards") || document.querySelector(".cards-grid");
+  logoutBtn          = document.getElementById("logout-btn");
+  currentDateTime    = document.getElementById("current-datetime");
+  pageTitle          = document.getElementById("page-title") || document.querySelector(".page-title");
+
+  dashErrorBanner   = document.getElementById("dash-error-banner");
+  dashErrorMsg      = document.getElementById("dash-error-message");
+
+  recentTripsBody   = document.getElementById("recent-trips-body");
+  recentTripsEmpty  = document.getElementById("recent-trips-empty");
+
+  recentMaintBody   = document.getElementById("recent-maint-body");
+  recentMaintEmpty  = document.getElementById("recent-maint-empty");
+
+  recentFuelBody    = document.getElementById("recent-fuel-body");
+  recentFuelEmpty   = document.getElementById("recent-fuel-empty");
+
+  lastRefreshedEl   = document.getElementById("last-refreshed");
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    ████████████████████████████████████████████████████████████████
@@ -178,57 +346,56 @@ const lastRefreshedEl   = document.getElementById("last-refreshed");
    @param {string} msg — error text to display
 ═══════════════════════════════════════════════════════════════════ */
 function showDashError(msg) {
+  if (typeof showToast === "function") {
+    showToast(msg, "error");
+  }
   if (!dashErrorBanner || !dashErrorMsg) return;
 
   dashErrorMsg.textContent = msg;
   dashErrorBanner.classList.add("visible");
-  dashErrorBanner.classList.remove("hidden");
+  dashErrorBanner.style.display = "block";
 
   // Auto-dismiss after 6 seconds
   setTimeout(function () {
     dashErrorBanner.classList.remove("visible");
+    dashErrorBanner.style.display = "none";
   }, 6000);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    SHOW CARD LOADING STATE
-   Fills every KPI card value with a loading indicator
-   while the dashboard API request is in flight.
+   Fills every KPI card value with a loading indicator.
 ═══════════════════════════════════════════════════════════════════ */
 function showCardsLoading() {
-  // Find every rendered card value element and replace with spinner text
-  DASHBOARD_CARDS.forEach(function (card) {
-    const cardEl = document.getElementById(card.id);
-    if (!cardEl) return;
-    const valueEl = cardEl.querySelector(".card-value");
-    if (valueEl) {
-      valueEl.textContent = "…"; // loading indicator
-      valueEl.classList.add("loading");
-    }
-  });
+  const cards = document.querySelectorAll(".cards-grid .dash-card");
+  if (cards && cards.length > 0) {
+    cards.forEach(function (card) {
+      const valueEl = card.querySelector(".card-value");
+      if (valueEl) {
+        valueEl.textContent = "…";
+        valueEl.classList.add("loading");
+      }
+    });
+  } else if (DASHBOARD_CARDS) {
+    DASHBOARD_CARDS.forEach(function (card) {
+      const cardEl = document.getElementById(card.id);
+      if (!cardEl) return;
+      const valueEl = cardEl.querySelector(".card-value");
+      if (valueEl) {
+        valueEl.textContent = "…";
+        valueEl.classList.add("loading");
+      }
+    });
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    LOAD DASHBOARD KPI CARDS
    Fetches summary metrics from GET /api/reports/dashboard and
-   updates each KPI card with the real value from the API response.
-
-   Expected response shape:
-   {
-     active_vehicles: 12,
-     available_vehicles: 8,
-     vehicles_in_maintenance: 3,
-     active_trips: 5,
-     pending_trips: 7,
-     drivers_on_duty: 18,
-     fleet_utilization: "72%"
-   }
-
-   If the backend is unavailable, cards show "--" and the error
-   banner is displayed.
+   updates each KPI card.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadDashboardCards() {
-  // Show loading indicators in all cards before the request fires
+  // Show loading indicators before the request starts
   showCardsLoading();
 
   try {
@@ -238,38 +405,79 @@ async function loadDashboardCards() {
       throw new Error("Server returned status " + response.status);
     }
 
-    // Parse the metrics object
-    const data = await response.json();
+    const resBody = await response.json();
+    const data = resBody.data || resBody;
 
-    // Update each card's value element with the API-provided value
-    DASHBOARD_CARDS.forEach(function (card) {
-      const cardEl = document.getElementById(card.id);
-      if (!cardEl) return;
+    // Try to update static card elements inside .cards-grid
+    const cards = document.querySelectorAll(".cards-grid .dash-card");
+    if (cards && cards.length > 0) {
+      cards.forEach(function (card) {
+        const titleEl = card.querySelector("h3") || card.querySelector(".card-title");
+        const valueEl = card.querySelector(".card-value");
+        if (titleEl && valueEl) {
+          const titleText = titleEl.textContent.trim().toLowerCase();
+          let value = "--";
+          if (titleText.includes("active vehicles")) {
+            value = data.active_vehicles;
+          } else if (titleText.includes("available vehicles")) {
+            value = data.available_vehicles;
+          } else if (titleText.includes("maintenance")) {
+            value = data.vehicles_in_maintenance;
+          } else if (titleText.includes("active trips")) {
+            value = data.active_trips;
+          } else if (titleText.includes("pending trips")) {
+            value = data.pending_trips;
+          } else if (titleText.includes("drivers")) {
+            value = data.drivers_on_duty;
+          } else if (titleText.includes("utilization")) {
+            value = data.fleet_utilization;
+          }
 
-      const valueEl = cardEl.querySelector(".card-value");
-      if (!valueEl) return;
+          valueEl.textContent = (value !== null && value !== undefined)
+            ? String(value)
+            : "--";
+          valueEl.classList.remove("loading");
+        }
+      });
+    } else {
+      // Fallback: update elements by ID
+      DASHBOARD_CARDS.forEach(function (card) {
+        const cardEl = document.getElementById(card.id);
+        if (!cardEl) return;
 
-      // Read the matching key from the API response; fall back to "--"
-      const rawValue = data[card.apiKey];
-      valueEl.textContent = (rawValue !== null && rawValue !== undefined)
-        ? String(rawValue)
-        : "--";
+        const valueEl = cardEl.querySelector(".card-value");
+        if (!valueEl) return;
 
-      // Remove loading class now that real data is shown
-      valueEl.classList.remove("loading");
-    });
+        const rawValue = data[card.apiKey];
+        valueEl.textContent = (rawValue !== null && rawValue !== undefined)
+          ? String(rawValue)
+          : "--";
+        valueEl.classList.remove("loading");
+      });
+    }
 
   } catch (error) {
-    // Backend unavailable — set every card to "--"
-    DASHBOARD_CARDS.forEach(function (card) {
-      const cardEl = document.getElementById(card.id);
-      if (!cardEl) return;
-      const valueEl = cardEl.querySelector(".card-value");
-      if (valueEl) {
-        valueEl.textContent = "--";
-        valueEl.classList.remove("loading");
-      }
-    });
+    // Reset all cards to "--" on failure
+    const cards = document.querySelectorAll(".cards-grid .dash-card");
+    if (cards && cards.length > 0) {
+      cards.forEach(function (card) {
+        const valueEl = card.querySelector(".card-value");
+        if (valueEl) {
+          valueEl.textContent = "--";
+          valueEl.classList.remove("loading");
+        }
+      });
+    } else {
+      DASHBOARD_CARDS.forEach(function (card) {
+        const cardEl = document.getElementById(card.id);
+        if (!cardEl) return;
+        const valueEl = cardEl.querySelector(".card-value");
+        if (valueEl) {
+          valueEl.textContent = "--";
+          valueEl.classList.remove("loading");
+        }
+      });
+    }
 
     showDashError("Unable to connect to backend server.");
     console.error("[dashboard.js] loadDashboardCards error:", error);
@@ -278,28 +486,19 @@ async function loadDashboardCards() {
 
 /* ═══════════════════════════════════════════════════════════════════
    SET TABLE LOADING ROW
-   Inserts a single loading row spanning all columns into a
-   table body element while an API request is in flight.
-
-   @param {HTMLElement} tbody   — the <tbody> element to update
-   @param {number}      colspan — number of columns to span
+   Inserts a single loading row spanning all columns.
 ═══════════════════════════════════════════════════════════════════ */
 function setTableLoading(tbody, colspan) {
   if (!tbody) return;
   tbody.innerHTML =
-    '<tr><td colspan="' + colspan + '" class="table-loading">Loading...</td></tr>';
+    '<tr><td colspan="' + colspan + '" class="table-loading" style="text-align: center; color: var(--text-secondary); padding: 2rem;">Loading...</td></tr>';
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    LOAD RECENT TRIPS
-   Fetches the latest trip records from GET /api/reports/recent-trips
-   and renders them into the recent-trips panel.
-
-   Expected response: Array of trip objects, each containing:
-     trip_id, vehicle, driver, source, destination, status, start_date
+   Fetches the latest trip records from GET /api/reports/recent-trips.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadRecentTrips() {
-  // Show loading row while the request is in flight
   setTableLoading(recentTripsBody, 6);
 
   try {
@@ -309,27 +508,18 @@ async function loadRecentTrips() {
       throw new Error("Server returned status " + response.status);
     }
 
-    const trips = await response.json();
+    const resBody = await response.json();
+    const trips = resBody.data || resBody || [];
 
-    // Clear and render
     if (recentTripsBody) recentTripsBody.innerHTML = "";
 
     if (!trips || trips.length === 0) {
-      // Show empty state
-      if (recentTripsEmpty) {
-        recentTripsEmpty.classList.remove("hidden");
-        recentTripsEmpty.classList.add("visible");
-      }
+      showEmptyState(recentTripsEmpty, true);
       return;
     }
 
-    // Hide empty state when data is available
-    if (recentTripsEmpty) {
-      recentTripsEmpty.classList.add("hidden");
-      recentTripsEmpty.classList.remove("visible");
-    }
+    showEmptyState(recentTripsEmpty, false);
 
-    // Build one row per trip
     trips.forEach(function (trip) {
       if (!recentTripsBody) return;
 
@@ -343,7 +533,7 @@ async function loadRecentTrips() {
         "<td>" + escapeHtml(trip.driver)             + "</td>" +
         "<td>" + formatDate(trip.start_date)         + "</td>" +
         "<td>" +
-          '<span class="status-badge ' + statusClass + '">' +
+          '<span class="badge-status ' + statusClass + '">' +
             escapeHtml(trip.status) +
           "</span>" +
         "</td>";
@@ -354,7 +544,7 @@ async function loadRecentTrips() {
   } catch (error) {
     if (recentTripsBody) {
       recentTripsBody.innerHTML =
-        '<tr><td colspan="6" class="table-error">Unable to load recent trips.</td></tr>';
+        '<tr><td colspan="6" class="table-error" style="text-align: center; color: var(--danger); padding: 2rem;">Unable to load recent trips.</td></tr>';
     }
     console.error("[dashboard.js] loadRecentTrips error:", error);
   }
@@ -362,15 +552,9 @@ async function loadRecentTrips() {
 
 /* ═══════════════════════════════════════════════════════════════════
    LOAD RECENT MAINTENANCE
-   Fetches the latest maintenance records from
-   GET /api/reports/recent-maintenance and renders them.
-
-   Expected response: Array of maintenance objects, each containing:
-     maintenance_id, vehicle, maintenance_type,
-     scheduled_date, status, technician
+   Fetches the latest maintenance records.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadRecentMaintenance() {
-  // Show loading row while the request is in flight
   setTableLoading(recentMaintBody, 5);
 
   try {
@@ -380,27 +564,18 @@ async function loadRecentMaintenance() {
       throw new Error("Server returned status " + response.status);
     }
 
-    const records = await response.json();
+    const resBody = await response.json();
+    const records = resBody.data || resBody || [];
 
-    // Clear and render
     if (recentMaintBody) recentMaintBody.innerHTML = "";
 
     if (!records || records.length === 0) {
-      // Show empty state
-      if (recentMaintEmpty) {
-        recentMaintEmpty.classList.remove("hidden");
-        recentMaintEmpty.classList.add("visible");
-      }
+      showEmptyState(recentMaintEmpty, true);
       return;
     }
 
-    // Hide empty state when data is available
-    if (recentMaintEmpty) {
-      recentMaintEmpty.classList.add("hidden");
-      recentMaintEmpty.classList.remove("visible");
-    }
+    showEmptyState(recentMaintEmpty, false);
 
-    // Build one row per maintenance record
     records.forEach(function (record) {
       if (!recentMaintBody) return;
 
@@ -413,7 +588,7 @@ async function loadRecentMaintenance() {
         "<td>" + formatDate(record.scheduled_date)         + "</td>" +
         "<td>" + escapeHtml(record.technician || "—")      + "</td>" +
         "<td>" +
-          '<span class="status-badge ' + statusClass + '">' +
+          '<span class="badge-status ' + statusClass + '">' +
             escapeHtml(record.status) +
           "</span>" +
         "</td>";
@@ -424,7 +599,7 @@ async function loadRecentMaintenance() {
   } catch (error) {
     if (recentMaintBody) {
       recentMaintBody.innerHTML =
-        '<tr><td colspan="5" class="table-error">Unable to load maintenance records.</td></tr>';
+        '<tr><td colspan="5" class="table-error" style="text-align: center; color: var(--danger); padding: 2rem;">Unable to load maintenance records.</td></tr>';
     }
     console.error("[dashboard.js] loadRecentMaintenance error:", error);
   }
@@ -432,14 +607,9 @@ async function loadRecentMaintenance() {
 
 /* ═══════════════════════════════════════════════════════════════════
    LOAD RECENT FUEL
-   Fetches the latest fuel log entries from
-   GET /api/reports/recent-fuel and renders them.
-
-   Expected response: Array of fuel objects, each containing:
-     fuel_id, vehicle, fuel_type, litres, cost, date
+   Fetches the latest fuel logs.
 ═══════════════════════════════════════════════════════════════════ */
 async function loadRecentFuel() {
-  // Show loading row while the request is in flight
   setTableLoading(recentFuelBody, 5);
 
   try {
@@ -449,27 +619,18 @@ async function loadRecentFuel() {
       throw new Error("Server returned status " + response.status);
     }
 
-    const logs = await response.json();
+    const resBody = await response.json();
+    const logs = resBody.data || resBody || [];
 
-    // Clear and render
     if (recentFuelBody) recentFuelBody.innerHTML = "";
 
     if (!logs || logs.length === 0) {
-      // Show empty state
-      if (recentFuelEmpty) {
-        recentFuelEmpty.classList.remove("hidden");
-        recentFuelEmpty.classList.add("visible");
-      }
+      showEmptyState(recentFuelEmpty, true);
       return;
     }
 
-    // Hide empty state when data is available
-    if (recentFuelEmpty) {
-      recentFuelEmpty.classList.add("hidden");
-      recentFuelEmpty.classList.remove("visible");
-    }
+    showEmptyState(recentFuelEmpty, false);
 
-    // Build one row per fuel log
     logs.forEach(function (log) {
       if (!recentFuelBody) return;
 
@@ -488,7 +649,7 @@ async function loadRecentFuel() {
   } catch (error) {
     if (recentFuelBody) {
       recentFuelBody.innerHTML =
-        '<tr><td colspan="5" class="table-error">Unable to load fuel logs.</td></tr>';
+        '<tr><td colspan="5" class="table-error" style="text-align: center; color: var(--danger); padding: 2rem;">Unable to load fuel logs.</td></tr>';
     }
     console.error("[dashboard.js] loadRecentFuel error:", error);
   }
@@ -497,11 +658,8 @@ async function loadRecentFuel() {
 /* ═══════════════════════════════════════════════════════════════════
    REFRESH ALL DASHBOARD DATA
    Fetches all four API endpoints concurrently.
-   Called on initial load and every 30 seconds by the auto-refresh
-   interval.  Also updates the "Last refreshed" timestamp.
 ═══════════════════════════════════════════════════════════════════ */
 async function refreshDashboard() {
-  // Fetch all four data sources in parallel — none blocks another
   await Promise.all([
     loadDashboardCards(),
     loadRecentTrips(),
@@ -509,14 +667,12 @@ async function refreshDashboard() {
     loadRecentFuel(),
   ]);
 
-  // Update the "last refreshed" display with the current time
   updateLastRefreshed();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    UPDATE LAST REFRESHED
-   Writes the current time into the "last-refreshed" element so
-   the user knows when the data was last fetched.
+   Updates the last refreshed timestamp display.
 ═══════════════════════════════════════════════════════════════════ */
 function updateLastRefreshed() {
   if (!lastRefreshedEl) return;
@@ -534,12 +690,9 @@ function updateLastRefreshed() {
 
 /* ═══════════════════════════════════════════════════════════════════
    START AUTO-REFRESH
-   Sets up a repeating interval that calls refreshDashboard()
-   every REFRESH_INTERVAL_MS milliseconds (30 seconds).
-   Stores the interval id so it can be cleared if needed.
+   Updates the dashboard values every 30 seconds.
 ═══════════════════════════════════════════════════════════════════ */
 function startAutoRefresh() {
-  // Clear any existing interval before starting a new one
   if (refreshIntervalId !== null) {
     clearInterval(refreshIntervalId);
   }
@@ -550,79 +703,59 @@ function startAutoRefresh() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ████████████████████████████████████████████████████████████████
-   UI — SIDEBAR (preserved from original)
-   ████████████████████████████████████████████████████████████████
+   SHOW EMPTY STATE
+   Toggles the visibility of empty message containers.
 ═══════════════════════════════════════════════════════════════════ */
+function showEmptyState(el, show) {
+  if (!el) return;
+  if (show) {
+    el.classList.remove("hidden");
+    el.style.display = "block";
+  } else {
+    el.classList.add("hidden");
+    el.style.display = "none";
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR — OPEN
-   Opens the sidebar by adding the "open" CSS class.
-   Also shows the overlay for mobile backdrop.
+   ████████████████████████████████████████████████████████████████
+   UI — SIDEBAR & MENU (preserved from original)
+   ████████████████████████████████████████████████████████████████
 ═══════════════════════════════════════════════════════════════════ */
+
 function openSidebar() {
   if (!sidebar) return;
-
-  // Add "open" class — CSS handles the slide-in animation
   sidebar.classList.add("open");
   sidebar.classList.remove("collapsed");
 
-  // Show the overlay backdrop on mobile screens
-  if (overlay) {
-    overlay.classList.add("visible");
-  }
+  if (overlay) overlay.classList.add("visible");
 
-  // Update aria-expanded attribute for accessibility
   if (sidebarToggleBtn) {
     sidebarToggleBtn.setAttribute("aria-expanded", "true");
   }
-
-  // Shift main content to the right on desktop (if layout uses margin)
   if (mainContent) {
     mainContent.classList.add("sidebar-open");
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR — CLOSE
-   Closes the sidebar by removing the "open" CSS class.
-   Also hides the overlay.
-═══════════════════════════════════════════════════════════════════ */
 function closeSidebar() {
   if (!sidebar) return;
-
-  // Remove "open" class — CSS handles the slide-out animation
   sidebar.classList.remove("open");
   sidebar.classList.add("collapsed");
 
-  // Hide the overlay backdrop
-  if (overlay) {
-    overlay.classList.remove("visible");
-  }
+  if (overlay) overlay.classList.remove("visible");
 
-  // Update aria-expanded for accessibility
   if (sidebarToggleBtn) {
     sidebarToggleBtn.setAttribute("aria-expanded", "false");
   }
-
-  // Remove the shifted main content class
   if (mainContent) {
     mainContent.classList.remove("sidebar-open");
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR — TOGGLE
-   Checks whether the sidebar is currently open and
-   toggles to the opposite state.
-═══════════════════════════════════════════════════════════════════ */
 function toggleSidebar() {
   if (!sidebar) return;
-
-  // Determine current state from CSS class
   const isOpen = sidebar.classList.contains("open");
-
-  // Toggle accordingly
   if (isOpen) {
     closeSidebar();
   } else {
@@ -630,405 +763,225 @@ function toggleSidebar() {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR — SET ACTIVE MENU ITEM
-   Removes "active" class from all nav items, then adds it
-   to the clicked item. Also updates the page title.
-   @param {string} navId — the id of the nav item to activate
-   @param {string} label — the label to display as page title
-═══════════════════════════════════════════════════════════════════ */
 function setActiveNavItem(navId, label) {
-  // Find all nav link elements inside the sidebar
-  const allNavLinks = document.querySelectorAll(".nav-item");
-
-  // Remove "active" from every nav item
+  const allNavLinks = document.querySelectorAll(".nav-item a, .nav-item");
   allNavLinks.forEach(function (link) {
     link.classList.remove("active");
-    link.removeAttribute("aria-current"); // clear aria state
+    link.removeAttribute("aria-current");
   });
 
-  // Add "active" to the clicked nav item by its id
   const activeLink = document.getElementById(navId);
   if (activeLink) {
     activeLink.classList.add("active");
-    activeLink.setAttribute("aria-current", "page"); // set aria state
+    activeLink.setAttribute("aria-current", "page");
   }
 
-  // Update the page title heading to reflect the active section
   if (pageTitle) {
     pageTitle.textContent = label;
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   BUILD SIDEBAR NAV
-   Dynamically builds navigation list items from NAV_ITEMS data.
-   Attaches click listeners for active state management.
-═══════════════════════════════════════════════════════════════════ */
 function buildSidebarNav() {
-  if (!navMenu) return;
+  // Let the static HTML sidebar-nav handle page links.
+  // We only activate the navigation highlight depending on the current HTML filename.
+  const currentPath = window.location.pathname;
+  const pageName = currentPath.substring(currentPath.lastIndexOf("/") + 1);
 
-  // Clear any existing nav items before rebuilding
-  navMenu.innerHTML = "";
-
-  // Loop through NAV_ITEMS data array and create each nav link
-  NAV_ITEMS.forEach(function (item) {
-    // Create the list item wrapper
-    const li = document.createElement("li");
-
-    // Create the anchor link element
-    const a = document.createElement("a");
-    a.id        = item.id;
-    a.href      = item.href;
-    a.className = "nav-item";
-    a.setAttribute("role", "menuitem");
-
-    // Build inner HTML: icon span + label span
-    a.innerHTML =
-      '<span class="nav-icon" aria-hidden="true">' + item.icon + '</span>' +
-      '<span class="nav-label">' + item.label + '</span>';
-
-    // Click listener: set this item as active, close sidebar on mobile
-    a.addEventListener("click", function (e) {
-      e.preventDefault(); // prevent page anchor jump
-
-      // Mark this item as active and update page title
-      setActiveNavItem(item.id, item.label);
-
-      // On small screens, auto-close sidebar after nav selection
-      if (window.innerWidth < 768) {
-        closeSidebar();
+  const allNavLinks = document.querySelectorAll(".sidebar-nav .nav-item a");
+  allNavLinks.forEach(function (link) {
+    const linkHref = link.getAttribute("href");
+    if (linkHref && pageName && linkHref.includes(pageName)) {
+      link.classList.add("active");
+      link.setAttribute("aria-current", "page");
+      
+      const labelEl = link.querySelector(".nav-label") || link;
+      if (pageTitle && labelEl) {
+        pageTitle.textContent = labelEl.textContent.trim();
       }
-    });
-
-    // Append link into list item, then into nav menu
-    li.appendChild(a);
-    navMenu.appendChild(li);
+    } else {
+      link.classList.remove("active");
+    }
   });
-
-  // Set "Dashboard" as the default active item on load
-  setActiveNavItem("nav-dashboard", "Dashboard");
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    ████████████████████████████████████████████████████████████████
-   UI — NOTIFICATIONS (preserved from original)
+   UI — NOTIFICATIONS & DROPDOWNS (preserved from original)
    ████████████████████████████████████████████████████████████████
 ═══════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════════════
-   NOTIFICATION DROPDOWN — TOGGLE
-   Opens or closes the notification dropdown panel.
-   Closes the profile dropdown if it is also open.
-═══════════════════════════════════════════════════════════════════ */
 function toggleNotificationDropdown() {
   if (!notifDropdown) return;
-
-  // Check current state
   const isOpen = notifDropdown.classList.contains("open");
-
-  // Always close the profile dropdown first (only one open at a time)
   closeProfileDropdown();
 
   if (isOpen) {
-    // Close notification dropdown
     notifDropdown.classList.remove("open");
     if (notifToggleBtn) notifToggleBtn.setAttribute("aria-expanded", "false");
   } else {
-    // Open notification dropdown
     notifDropdown.classList.add("open");
     if (notifToggleBtn) notifToggleBtn.setAttribute("aria-expanded", "true");
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   NOTIFICATION DROPDOWN — CLOSE
-   Explicitly closes the notification dropdown.
-═══════════════════════════════════════════════════════════════════ */
 function closeNotificationDropdown() {
   if (!notifDropdown) return;
-
-  // Remove "open" class to trigger CSS hide animation
   notifDropdown.classList.remove("open");
-
-  if (notifToggleBtn) {
-    notifToggleBtn.setAttribute("aria-expanded", "false");
-  }
+  if (notifToggleBtn) notifToggleBtn.setAttribute("aria-expanded", "false");
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   BUILD NOTIFICATIONS LIST
-   Renders notification items from NOTIFICATIONS array into the
-   notification dropdown list container.
-═══════════════════════════════════════════════════════════════════ */
 function buildNotificationsList() {
   if (!notifList) return;
-
-  // Clear existing notification items
   notifList.innerHTML = "";
-
-  // Count unread notifications for the badge
   let unreadCount = 0;
 
-  // Loop through each notification and build DOM elements
   NOTIFICATIONS.forEach(function (notif) {
-    // Create notification item container
     const item = document.createElement("div");
     item.className = "notif-item" + (notif.unread ? " unread" : "");
     item.id = notif.id;
     item.setAttribute("role", "listitem");
 
-    // Build notification inner content
     item.innerHTML =
       '<span class="notif-icon" aria-hidden="true">' + notif.icon + '</span>' +
-      '<div class="notif-body">' +
-        '<p class="notif-title">' + notif.title + '</p>' +
-        '<p class="notif-message">' + notif.message + '</p>' +
-        '<span class="notif-time">' + notif.time + '</span>' +
+      '<div class="notif-body" style="flex:1; padding-left:10px;">' +
+        '<p class="notif-title" style="font-weight:600; font-size:0.875rem;">' + notif.title + '</p>' +
+        '<p class="notif-message" style="font-size:0.8rem; color:var(--text-secondary);">' + notif.message + '</p>' +
+        '<span class="notif-time" style="font-size:0.75rem; color:var(--text-secondary);">' + notif.time + '</span>' +
       '</div>' +
-      (notif.unread ? '<span class="notif-dot" aria-label="Unread"></span>' : '');
+      (notif.unread ? '<span class="notif-dot" style="width:8px; height:8px; background:var(--danger); border-radius:50%; display:inline-block; margin-left:10px;"></span>' : '');
 
-    // Click listener: mark individual notification as read
     item.addEventListener("click", function () {
       markNotificationRead(notif.id, item);
     });
 
     notifList.appendChild(item);
-
-    // Count unread for badge
     if (notif.unread) unreadCount++;
   });
 
-  // Update the notification badge count
   updateNotifBadge(unreadCount);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   UPDATE NOTIFICATION BADGE
-   Shows or hides the red badge and updates its count.
-   @param {number} count — number of unread notifications
-═══════════════════════════════════════════════════════════════════ */
 function updateNotifBadge(count) {
   if (!notifBadge) return;
-
   if (count > 0) {
-    // Show badge with count (max display: "9+")
     notifBadge.textContent = count > 9 ? "9+" : String(count);
     notifBadge.classList.remove("hidden");
+    notifBadge.style.display = "flex";
   } else {
-    // Hide badge when no unread notifications remain
     notifBadge.textContent = "";
     notifBadge.classList.add("hidden");
+    notifBadge.style.display = "none";
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   MARK NOTIFICATION AS READ
-   Removes the "unread" class from a notification item and
-   decrements the badge counter.
-   @param {string}      notifId — the id of the notification
-   @param {HTMLElement} itemEl  — the notification DOM element
-═══════════════════════════════════════════════════════════════════ */
 function markNotificationRead(notifId, itemEl) {
-  // Find the notification in data array
   const notif = NOTIFICATIONS.find(function (n) { return n.id === notifId; });
+  if (!notif || !notif.unread) return;
 
-  if (!notif || !notif.unread) return; // already read, nothing to do
-
-  // Mark as read in data
   notif.unread = false;
-
-  // Remove "unread" CSS class from element
   if (itemEl) {
     itemEl.classList.remove("unread");
-    // Remove the unread dot indicator
-    const dot = itemEl.querySelector(".notif-dot");
+    const dot = itemEl.querySelector(".notif-dot") || itemEl.querySelector("span[style*='background:var(--danger)']");
     if (dot) dot.remove();
   }
 
-  // Recalculate unread count and update badge
   const unreadCount = NOTIFICATIONS.filter(function (n) { return n.unread; }).length;
   updateNotifBadge(unreadCount);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   MARK ALL NOTIFICATIONS AS READ
-   Sets all notifications to read state and updates the UI.
-═══════════════════════════════════════════════════════════════════ */
 function markAllNotificationsRead() {
-  // Mark all as read in the data array
   NOTIFICATIONS.forEach(function (notif) {
     notif.unread = false;
   });
 
-  // Remove "unread" class and dot from all rendered items
   if (notifList) {
     const unreadItems = notifList.querySelectorAll(".notif-item.unread");
     unreadItems.forEach(function (item) {
       item.classList.remove("unread");
-      const dot = item.querySelector(".notif-dot");
+      const dot = item.querySelector(".notif-dot") || item.querySelector("span[style*='background:var(--danger)']");
       if (dot) dot.remove();
     });
   }
 
-  // Set badge to zero (hidden)
   updateNotifBadge(0);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ████████████████████████████████████████████████████████████████
-   UI — PROFILE (preserved from original)
-   ████████████████████████████████████████████████████████████████
+   UI — PROFILE & DROPDOWNS (preserved from original)
 ═══════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════════════
-   PROFILE DROPDOWN — TOGGLE
-   Opens or closes the profile dropdown panel.
-   Closes the notification dropdown if it is also open.
-═══════════════════════════════════════════════════════════════════ */
 function toggleProfileDropdown() {
   if (!profileDropdown) return;
-
-  // Check current state
   const isOpen = profileDropdown.classList.contains("open");
-
-  // Always close notification dropdown first
   closeNotificationDropdown();
 
   if (isOpen) {
-    // Close profile dropdown
     profileDropdown.classList.remove("open");
     if (profileToggleBtn) profileToggleBtn.setAttribute("aria-expanded", "false");
   } else {
-    // Open profile dropdown
     profileDropdown.classList.add("open");
     if (profileToggleBtn) profileToggleBtn.setAttribute("aria-expanded", "true");
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   PROFILE DROPDOWN — CLOSE
-   Explicitly closes the profile dropdown.
-═══════════════════════════════════════════════════════════════════ */
 function closeProfileDropdown() {
   if (!profileDropdown) return;
-
-  // Remove "open" class to hide dropdown via CSS
   profileDropdown.classList.remove("open");
-
-  if (profileToggleBtn) {
-    profileToggleBtn.setAttribute("aria-expanded", "false");
-  }
+  if (profileToggleBtn) profileToggleBtn.setAttribute("aria-expanded", "false");
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   POPULATE PROFILE DATA
-   Inserts current user info from CURRENT_USER into the profile
-   dropdown and header display elements.
-═══════════════════════════════════════════════════════════════════ */
 function populateProfileData() {
-  // Set avatar initials in all avatar elements
   const avatarEls = document.querySelectorAll(".profile-avatar, #profile-avatar");
   avatarEls.forEach(function (el) {
     el.textContent = CURRENT_USER.avatar;
   });
 
-  // Set user name elements
-  if (profileName) {
-    profileName.textContent = CURRENT_USER.name;
-  }
+  if (profileName) profileName.textContent = CURRENT_USER.name;
+  if (profileRole) profileRole.textContent = CURRENT_USER.role;
 
-  // Set user role elements
-  if (profileRole) {
-    profileRole.textContent = CURRENT_USER.role;
-  }
-
-  // Fill any header username display
   const headerNameEl = document.getElementById("header-username");
-  if (headerNameEl) {
-    headerNameEl.textContent = CURRENT_USER.name;
-  }
+  if (headerNameEl) headerNameEl.textContent = CURRENT_USER.name;
 
-  // Fill email display inside profile dropdown
   const profileEmailEl = document.getElementById("profile-email");
-  if (profileEmailEl) {
-    profileEmailEl.textContent = CURRENT_USER.email;
+  if (profileEmailEl) profileEmailEl.textContent = CURRENT_USER.email;
+}
+
+function buildDashboardCards() {
+  // If cardsContainer exists (mock ID) and is empty, build them dynamically
+  if (cardsContainer && cardsContainer.id === "dashboard-cards" && cardsContainer.children.length === 0) {
+    cardsContainer.innerHTML = "";
+    DASHBOARD_CARDS.forEach(function (card) {
+      const cardEl = document.createElement("div");
+      cardEl.className = "dashboard-card card-" + card.color;
+      cardEl.id = card.id;
+
+      cardEl.innerHTML =
+        '<div class="card-header">' +
+          '<span class="card-icon" aria-hidden="true">' + card.icon + '</span>' +
+          '<h3 class="card-title">' + card.title + '</h3>' +
+        '</div>' +
+        '<div class="card-body">' +
+          '<p class="card-value">--</p>' +
+        '</div>';
+
+      cardEl.addEventListener("mouseenter", function () {
+        cardEl.classList.add("hovered");
+      });
+      cardEl.addEventListener("mouseleave", function () {
+        cardEl.classList.remove("hovered");
+      });
+
+      cardsContainer.appendChild(cardEl);
+    });
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   ████████████████████████████████████████████████████████████████
-   UI — KPI CARD SCAFFOLDING
-   Builds the card DOM structure first (with "--" values).
-   Real values are filled in by loadDashboardCards().
-   ████████████████████████████████████████████████████████████████
-═══════════════════════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════════════════════════════
-   BUILD DASHBOARD CARDS
-   Renders KPI card shells from DASHBOARD_CARDS definitions.
-   Each card starts with "--" as the value; loadDashboardCards()
-   replaces those with real API data immediately after.
-═══════════════════════════════════════════════════════════════════ */
-function buildDashboardCards() {
-  if (!cardsContainer) return;
-
-  // Clear any static placeholder cards
-  cardsContainer.innerHTML = "";
-
-  // Loop through each card definition and create the card element
-  DASHBOARD_CARDS.forEach(function (card) {
-    // Create card wrapper div
-    const cardEl = document.createElement("div");
-    cardEl.className = "dashboard-card card-" + card.color;
-    cardEl.id = card.id;
-
-    // Build card inner HTML — value starts as "--"
-    cardEl.innerHTML =
-      '<div class="card-header">' +
-        '<span class="card-icon" aria-hidden="true">' + card.icon + '</span>' +
-        '<h3 class="card-title">' + card.title + '</h3>' +
-      '</div>' +
-      '<div class="card-body">' +
-        '<p class="card-value">--</p>' +
-      '</div>';
-
-    // Add hover lift effect via class — animation defined in CSS
-    cardEl.addEventListener("mouseenter", function () {
-      cardEl.classList.add("hovered");
-    });
-    cardEl.addEventListener("mouseleave", function () {
-      cardEl.classList.remove("hovered");
-    });
-
-    cardsContainer.appendChild(cardEl);
-  });
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   ████████████████████████████████████████████████████████████████
-   UI — UTILITY (preserved from original)
-   ████████████████████████████████████████████████████████████████
-═══════════════════════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════════════════════════════
-   CLOSE ALL DROPDOWNS
-   Utility to close every open dropdown at once.
-   Used when clicking outside any dropdown area.
-═══════════════════════════════════════════════════════════════════ */
 function closeAllDropdowns() {
   closeNotificationDropdown();
   closeProfileDropdown();
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   GLOBAL CLICK OUTSIDE LISTENER
-   Closes any open dropdown when the user clicks outside of it.
-   @param {MouseEvent} e — the document click event
-═══════════════════════════════════════════════════════════════════ */
 function handleDocumentClick(e) {
-  // ── Notification dropdown ──────────────────────
-  // Check if click was outside both the toggle button and the dropdown
   if (
     notifDropdown &&
     notifToggleBtn &&
@@ -1038,8 +991,6 @@ function handleDocumentClick(e) {
     closeNotificationDropdown();
   }
 
-  // ── Profile dropdown ───────────────────────────
-  // Check if click was outside both the profile toggle and dropdown
   if (
     profileDropdown &&
     profileToggleBtn &&
@@ -1049,23 +1000,14 @@ function handleDocumentClick(e) {
     closeProfileDropdown();
   }
 
-  // ── Sidebar (mobile) ───────────────────────────
-  // Close sidebar when clicking the overlay backdrop
   if (overlay && e.target === overlay) {
     closeSidebar();
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   LIVE CLOCK
-   Updates the current date and time display every second.
-═══════════════════════════════════════════════════════════════════ */
 function updateClock() {
   if (!currentDateTime) return;
-
   const now = new Date();
-
-  // Format: "Saturday, 12 Jul 2026  09:39 AM"
   const options = {
     weekday : "long",
     year    : "numeric",
@@ -1075,43 +1017,24 @@ function updateClock() {
     minute  : "2-digit",
     hour12  : true,
   };
-
-  // Use browser locale formatting
   currentDateTime.textContent = now.toLocaleString("en-IN", options);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   LOGOUT
-   Redirects to the login page.
-   No authentication logic — purely navigational.
-═══════════════════════════════════════════════════════════════════ */
 function handleLogout() {
-  // Close the profile dropdown first
   closeProfileDropdown();
-
-  // Redirect to login page (no auth logic, no storage clearing)
-  window.location.href = "index.html";
+  window.location.href = "login.html";
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    ████████████████████████████████████████████████████████████████
    HELPER FUNCTIONS
-   Shared formatters and escape utilities for table rendering.
    ████████████████████████████████████████████████████████████████
 ═══════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════════════
-   HELPER — formatDate
-   Converts an ISO-8601 date string into a human-readable display.
-
-   @param  {string} dateStr — e.g. "2026-07-12T00:00:00Z"
-   @returns {string}         — e.g. "12 Jul 2026" or "—" if invalid
-═══════════════════════════════════════════════════════════════════ */
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   const parsed = new Date(dateStr);
   if (isNaN(parsed.getTime())) return "—";
-
   return parsed.toLocaleDateString("en-IN", {
     day   : "2-digit",
     month : "short",
@@ -1119,16 +1042,8 @@ function formatDate(dateStr) {
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   HELPER — formatCurrency
-   Formats a numeric value as INR currency.
-
-   @param  {number} value — monetary value
-   @returns {string} formatted string or "—" if invalid
-═══════════════════════════════════════════════════════════════════ */
 function formatCurrency(value) {
   if (value === null || value === undefined || isNaN(Number(value))) return "—";
-
   return Number(value).toLocaleString("en-IN", {
     style                : "currency",
     currency             : "INR",
@@ -1136,14 +1051,6 @@ function formatCurrency(value) {
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   HELPER — escapeHtml
-   Escapes special HTML characters to prevent XSS when inserting
-   API data into innerHTML.
-
-   @param  {string|number} str — raw value from the API
-   @returns {string} HTML-safe string
-═══════════════════════════════════════════════════════════════════ */
 function escapeHtml(str) {
   if (!str && str !== 0) return "";
   return String(str)
@@ -1154,13 +1061,6 @@ function escapeHtml(str) {
     .replace(/'/g,  "&#39;");
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   HELPER — getTripStatusClass
-   Maps a trip status string to a CSS badge class.
-
-   @param  {string} status — e.g. "Scheduled", "In Progress"
-   @returns {string} CSS class name
-═══════════════════════════════════════════════════════════════════ */
 function getTripStatusClass(status) {
   switch (status) {
     case "Scheduled":   return "badge-available";
@@ -1172,13 +1072,6 @@ function getTripStatusClass(status) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   HELPER — getMaintStatusClass
-   Maps a maintenance status string to a CSS badge class.
-
-   @param  {string} status — e.g. "Scheduled", "Completed"
-   @returns {string} CSS class name
-═══════════════════════════════════════════════════════════════════ */
 function getMaintStatusClass(status) {
   switch (status) {
     case "Scheduled":   return "badge-available";
@@ -1191,65 +1084,42 @@ function getMaintStatusClass(status) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ████████████████████████████████████████████████████████████████
-   EVENT LISTENERS
-   ████████████████████████████████████████████████████████████████
-═══════════════════════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════════════════════════════
    ATTACH EVENT LISTENERS
-   Wires all interactive elements to their handler functions.
-   Preserved from the original file with no changes.
 ═══════════════════════════════════════════════════════════════════ */
 function attachEventListeners() {
-  // ── Sidebar toggle button (hamburger icon in header)
   if (sidebarToggleBtn) {
     sidebarToggleBtn.addEventListener("click", toggleSidebar);
   }
-
-  // ── Sidebar close button (X button inside sidebar)
   if (sidebarCloseBtn) {
     sidebarCloseBtn.addEventListener("click", closeSidebar);
   }
-
-  // ── Overlay click closes sidebar on mobile
   if (overlay) {
     overlay.addEventListener("click", closeSidebar);
   }
-
-  // ── Notification bell icon toggle
   if (notifToggleBtn) {
     notifToggleBtn.addEventListener("click", function (e) {
-      e.stopPropagation(); // prevent document click from immediately closing
+      e.stopPropagation();
       toggleNotificationDropdown();
     });
   }
-
-  // ── Mark all notifications as read button
   if (markAllReadBtn) {
     markAllReadBtn.addEventListener("click", function (e) {
-      e.stopPropagation(); // keep dropdown open after clicking
+      e.stopPropagation();
       markAllNotificationsRead();
     });
   }
-
-  // ── Profile avatar/name toggle
   if (profileToggleBtn) {
     profileToggleBtn.addEventListener("click", function (e) {
-      e.stopPropagation(); // prevent document click from immediately closing
+      e.stopPropagation();
       toggleProfileDropdown();
     });
   }
-
-  // ── Logout button inside profile dropdown
   if (logoutBtn) {
     logoutBtn.addEventListener("click", handleLogout);
   }
 
-  // ── Global click listener: close dropdowns when clicking outside
   document.addEventListener("click", handleDocumentClick);
 
-  // ── Keyboard: close dropdowns and sidebar on Escape key
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       closeAllDropdowns();
@@ -1257,7 +1127,6 @@ function attachEventListeners() {
     }
   });
 
-  // ── Window resize: auto-close sidebar overlay on desktop
   window.addEventListener("resize", function () {
     if (window.innerWidth >= 1024) {
       if (overlay) overlay.classList.remove("visible");
@@ -1266,46 +1135,30 @@ function attachEventListeners() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ████████████████████████████████████████████████████████████████
    INIT
-   ████████████████████████████████████████████████████████████████
-═══════════════════════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════════════════════════════
-   INIT — initialiseDashboard
-   Orchestrates all build, setup, and API fetch functions.
-   Order:
-   1. Build static UI (sidebar, cards scaffold, notifications, profile)
-   2. Attach event listeners
-   3. Start live clock
-   4. Fetch all API data (initial load)
-   5. Start 30-second auto-refresh
 ═══════════════════════════════════════════════════════════════════ */
 async function initialiseDashboard() {
-  // ── Step 1: Build static UI elements ──────────────────────────
-  buildSidebarNav();         // render sidebar navigation links
-  buildDashboardCards();     // render KPI card shells with "--" values
-  buildNotificationsList();  // render notification dropdown items
-  populateProfileData();     // fill profile name, role, avatar
+  // Ensure DOM containers exist (trips, maintenance, fuel tables)
+  ensureDomElementsExist();
 
-  // ── Step 2: Attach all interactive event listeners ─────────────
+  // Build nav highlight & user mock profiles
+  buildSidebarNav();
+  buildDashboardCards();
+  buildNotificationsList();
+  populateProfileData();
+
+  // Attach all UI listeners
   attachEventListeners();
 
-  // ── Step 3: Start the live clock (updates every second) ────────
+  // Start live clock
   updateClock();
   setInterval(updateClock, 1000);
 
-  // ── Step 4: Open sidebar by default on large screens ──────────
-  if (window.innerWidth >= 1024) {
-    openSidebar();
-  }
-
-  // ── Step 5: Fetch all API data on initial load ─────────────────
+  // Fetch API report data
   await refreshDashboard();
 
-  // ── Step 6: Start the 30-second auto-refresh interval ─────────
+  // Start the 30 seconds auto refresh
   startAutoRefresh();
 }
 
-// Run when the DOM is fully parsed and ready
 document.addEventListener("DOMContentLoaded", initialiseDashboard);
